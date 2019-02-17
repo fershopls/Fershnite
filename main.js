@@ -45,6 +45,63 @@ var player = {
   width: 32,
   height: 32,
   speed: 200,
+  movement: {
+  	x_speed: 0, // current speed
+  	y_speed: 0, 
+  	max_speed: 160, // max px per sec
+  	aceleration: 30, // speed to max_speed in ms 
+  },
+  update: function(dt){
+  	if(input.isDown('DOWN') || input.isDown('s'))
+    {
+    	ms = this.movement.max_speed / this.movement.aceleration
+    	this.movement.y_speed += ms * dt
+    }
+
+    if(input.isDown('UP') || input.isDown('w'))
+    {
+    	ms = this.movement.max_speed / this.movement.aceleration
+    	this.movement.y_speed -= ms * dt
+    }
+
+    if ((this.movement.y_speed > 0 && !(input.isDown('DOWN') || input.isDown('s')))
+    	|| (this.movement.y_speed < 0 && !(input.isDown('UP') || input.isDown('w'))))
+    {
+    	this.movement.y_speed = 0
+    }
+
+    this.Y += this.movement.y_speed
+
+
+
+
+  	if(input.isDown('RIGHT') || input.isDown('d'))
+    {
+    	ms = this.movement.max_speed / this.movement.aceleration
+    	this.movement.x_speed += ms * dt
+    }
+
+    if(input.isDown('LEFT') || input.isDown('a'))
+    {
+    	ms = this.movement.max_speed / this.movement.aceleration
+    	this.movement.x_speed -= ms * dt
+    }
+
+    if ((this.movement.x_speed > 0 && !(input.isDown('RIGHT') || input.isDown('d')))
+    	|| (this.movement.x_speed < 0 && !(input.isDown('LEFT') || input.isDown('a'))))
+    {
+    	this.movement.x_speed = 0
+    }
+
+    this.X += this.movement.x_speed
+
+
+
+    if (input.isDown("SPACE"))
+		this.shoot(dt)
+
+	this.hits(dt);
+  },
   draw: function() {
     ctx.fillStyle = this.color;
     ctx.fillRect(this.X, this.Y, this.width, this.height);
@@ -52,24 +109,6 @@ var player = {
     // Draw AIM
     ctx.fillStyle = "red";
     ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
-  },
-  update: function(dt){
-  	if(input.isDown('DOWN') || input.isDown('s'))
-        this.Y += this.speed * dt;
-
-    if(input.isDown('UP') || input.isDown('w'))
-        this.Y -= this.speed * dt;
-
-    if(input.isDown('LEFT') || input.isDown('a'))
-        this.X -= this.speed * dt;
-
-    if(input.isDown('RIGHT') || input.isDown('d'))
-        this.X += this.speed * dt;
-
-    if (input.isDown("SPACE"))
-		this.shoot(dt)
-
-	this.hits(dt);
   },
   hits: function(dt) {
 	if (this.X > canvas.width - this.width)
@@ -96,14 +135,46 @@ var player = {
 var ShootController = {
 	stack: {},
 	lifetime: 800,
-	create: function(x, y, to_x, to_y)
+	create: function(x, y, mouse_x, mouse_y)
+	{
+		var root_angle = this.createAngle(x, y, mouse_x, mouse_y);
+		var perdigons = 8
+		var bloom = 30 * Math.PI / 180
+		var angle = root_angle;
+
+		for (i = 0; i < perdigons; i++)
+		{
+			angle -= bloom /2
+			angle += bloom * Math.random()
+			
+			to = this.getShootLineToRadian(x, y, 200, angle)
+			this.createBullet(x, y, to.X, to.Y)
+		}
+	},
+
+	createBullet: function (x, y, to_x, to_y)
 	{
 		shoot = {
 			from: {X:x, Y:y},
 			to: {X:to_x, Y:to_y},
 			time: Date.now()
 		}
+
 		this.stack[this.makeUniqueId()] = shoot
+	},
+
+	createAngle: function (x, y, to_x, to_y)
+	{
+		// Determine angle
+		var op = y - to_y
+		var ad = x - to_x
+		angle = Math.atan(op / ad)
+
+		// Determine side of the shoot
+		if (x > to_x)
+			angle += Math.PI
+
+		return angle // RADIANS
 	},
 
 	makeUniqueId: function()
@@ -139,10 +210,22 @@ var ShootController = {
 
 	loopDraw: function (id, shoot)
 	{
+		//this.drawTrigometricThing(shoot);
+    	
     	color_percent = 1 - (Date.now() - shoot.time) / this.lifetime
-    	ctx.beginPath();
-		ctx.strokeStyle = '#fafafa';
-		//ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
+
+		ctx.beginPath();
+		ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
+		ctx.moveTo(shoot.from.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.to.Y);
+		ctx.stroke();
+
+	},
+
+	drawTrigometricThing: function (shoot)
+	{
+		ctx.beginPath();
+		ctx.strokeStyle = '#ddd';
 		ctx.moveTo(shoot.from.X, shoot.from.Y);
 		ctx.lineTo(shoot.to.X, shoot.to.Y);
 
@@ -152,29 +235,11 @@ var ShootController = {
 		ctx.moveTo(shoot.to.X, shoot.from.Y);
 		ctx.lineTo(shoot.to.X, shoot.to.Y);
 		ctx.stroke();
-		
-		// tan (o / a)
-		ct = {
-			op: (shoot.from.Y - shoot.to.Y),
-			ad: (shoot.from.X - shoot.to.X),
-		}
-		angle = Math.atan(ct.op / ct.ad)
+	},
 
-		// Determine side of the shoot
-		if (shoot.from.X > shoot.to.X)
-			angle += Math.PI
-
-		x1 = shoot.from.X;
-		y1 = shoot.from.Y;
-		r =  200;
-		theta = angle;
-	
-		ctx.beginPath();
-		ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
-		ctx.moveTo(x1, y1);
-		ctx.lineTo(x1 + r * Math.cos(theta), y1 + r * Math.sin(theta));
-
-		ctx.stroke();
+	getShootLineToRadian: function (x, y, len, angle)
+	{
+		return {X:x + len * Math.cos(angle), Y: y + len * Math.sin(angle)}
 	},
 }
 
