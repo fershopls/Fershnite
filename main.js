@@ -91,7 +91,7 @@ var player = {
 
 var ShootController = {
 	stack: {},
-	lifetime: 0,
+	lifetime: 800,
 	create: function(x, y, to_x, to_y)
 	{
 		shoot = {
@@ -135,9 +135,9 @@ var ShootController = {
 
 	loopDraw: function (id, shoot)
 	{
-    	color_percent = 1 - (Date.now() - shoot.time) / this.lifetimea
+    	color_percent = 1 - (Date.now() - shoot.time) / this.lifetime
     	ctx.beginPath();
-		ctx.strokeStyle = '#aaa';
+		ctx.strokeStyle = '#fafafa';
 		//ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
 		ctx.moveTo(shoot.from.X, shoot.from.Y);
 		ctx.lineTo(shoot.to.X, shoot.to.Y);
@@ -154,15 +154,19 @@ var ShootController = {
 			op: (shoot.from.Y - shoot.to.Y),
 			ad: (shoot.from.X - shoot.to.X),
 		}
-		angle = Math.atan(ct.op / ct.ad),
+		angle = Math.atan(ct.op / ct.ad)
+
+		// Determine side of the shoot
+		if (shoot.from.X > shoot.to.X)
+			angle += Math.PI
 
 		x1 = shoot.from.X;
 		y1 = shoot.from.Y;
-		r =  100;
+		r =  200;
 		theta = angle;
 	
 		ctx.beginPath();
-		ctx.strokeStyle = 'red';
+		ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
 		ctx.moveTo(x1, y1);
 		ctx.lineTo(x1 + r * Math.cos(theta), y1 + r * Math.sin(theta));
 
