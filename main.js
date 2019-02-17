@@ -6,8 +6,23 @@ var ctx
 var canvas
 var lastTime
 
+function sound(src) {
+  this.sound = document.createElement("audio");
+  this.sound.src = src;
+  this.sound.setAttribute("preload", "auto");
+  this.sound.setAttribute("controls", "none");
+  this.sound.style.display = "none";
+  document.body.appendChild(this.sound);
+  this.play = function(){
+    this.sound.play();
+  }
+  this.stop = function(){
+    this.sound.pause();
+  }
+}
 
 function main () {
+
 	var now = Date.now();
 	var dt = (now - lastTime) / 1000.0;
 	if (!dt) dt = 0
@@ -18,6 +33,15 @@ function main () {
 }
 
 $(document).ready(function(){
+	sounds = {
+		fire: {
+			'rifle': new sound("assets/shoot.mp3"),
+			'shotgun': new sound("assets/shotgun.mp3"),
+			'smg': new sound("assets/smg.mp3"),
+		},
+		weapon: new sound("assets/switch_weapon.mp3"),
+	}
+
 	canvas = document.getElementById('canshoot');
 	ctx = canvas.getContext("2d");
 	main();
@@ -66,6 +90,8 @@ var UI = {
 	    ctx.fillStyle = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
 	    ctx.beginPath();
 	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
+	    ctx.fillRect(MouseController.X-1, MouseController.Y-3-10, 2, 8);
+	    ctx.fillRect(MouseController.X-1, MouseController.Y-3 +8, 2, 8);
 	}
 }
 
@@ -184,6 +210,8 @@ var player = {
     {
     	if (Date.now() - this.fire.lastTime >= this.getFireRate())
     	{
+    		sounds.fire[this.fire.weapon].sound.currentTime = 0
+    		sounds.fire[this.fire.weapon].play();
 			this.shoot(dt)
 	    	this.fire.lastTime = Date.now()
     	}
@@ -191,7 +219,10 @@ var player = {
 
     // Change weapon
     if (input.isDown("x"))
+    {
     	this.nextWeapon();
+    	sounds.weapon.play()
+    }
 
 	this.hits(dt);
   },
