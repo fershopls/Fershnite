@@ -48,6 +48,10 @@ var player = {
   draw: function() {
     ctx.fillStyle = this.color;
     ctx.fillRect(this.X, this.Y, this.width, this.height);
+    
+    // Draw AIM
+    ctx.fillStyle = "red";
+    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
   },
   update: function(dt){
   	if(input.isDown('DOWN') || input.isDown('s'))
