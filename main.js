@@ -39,7 +39,14 @@ function draw() {
 var UI = {
 	draw: function ()
 	{
-  		var text = "=> " + player.fire.weapon;
+  		this.drawItemSolt();
+
+		this.drawAim();
+	},
+
+	drawItemSolt: function()
+	{
+		var text = "=> " + player.fire.weapon;
 
 		ctx.font = "18px Verdana";
 		// Create gradient
@@ -50,6 +57,15 @@ var UI = {
 		// Fill with gradient
 		ctx.fillStyle = gradient;
 		ctx.fillText(text, 10, 90);
+	},
+
+	drawAim: function ()
+	{
+	    // Draw AIM
+	    var c = weapons[player.fire.weapon].color;
+	    ctx.fillStyle = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
+	    ctx.beginPath();
+	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
 	}
 }
 
@@ -59,12 +75,24 @@ var weapons = {
 		rate: 975,
 		bloom: 15,
 		length: 300,
+		lifetime: 975,
+		color: [0,0,255],
 	},
 	rifle: {
 		perdigons: 1,
-		rate: 500,
+		rate: 250,
 		bloom: 5,
 		length: 600,
+		lifetime: 250,
+		color: [255,0,255],
+	},
+	smg: {
+		perdigons: 1,
+		rate: 120,
+		bloom: 10,
+		length: 400,
+		lifetime: 100,
+		color: [255,0,0],
 	},
 }
 
@@ -82,15 +110,24 @@ var player = {
   },
   fire: {
   	lastTime: 0,
+  	lastSwitchTime: 0,
   	lastWeapon: null,
+  	minSwitchTime: 1000,
   	weapon: 'shotgun',
   },
   nextWeapon: function()
   {
-	if (this.fire.weapon == 'shotgun')
-		this.fire.weapon = 'rifle'
-	else
-		this.fire.weapon = 'shotgun'
+  	if (Date.now() - this.fire.lastSwitchTime < this.fire.minSwitchTime) return false;
+	var keys = Object.keys(weapons);
+	var index = keys.indexOf(this.fire.weapon)
+
+	next = index +1
+	if (typeof keys[next] == 'undefined')
+		next = 0
+
+	
+	this.fire.weapon = keys[next]
+	this.fire.lastSwitchTime = Date.now()
   },
   getFireRate: function()
   {
@@ -161,10 +198,6 @@ var player = {
   draw: function() {
     ctx.fillStyle = this.color;
     ctx.fillRect(this.X, this.Y, this.width, this.height);
-    
-    // Draw AIM
-    ctx.fillStyle = "red";
-    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
   },
   hits: function(dt) {
 	if (this.X > canvas.width - this.width)
@@ -201,22 +234,23 @@ var ShootController = {
 		var bloom = weaponType.bloom * Math.PI / 180
 		var length = weaponType.length
 
-		for (i = 0; i < perdigons; i++)
+		for (i = 1; i <= perdigons; i++)
 		{
 			angle -= bloom /2
 			angle += bloom * Math.random()
 			
 			to = this.getShootLineToRadian(x, y, length, angle)
-			this.createBullet(x, y, to.X, to.Y)
+			this.createBullet(x, y, to.X, to.Y, weaponType)
 		}
 	},
 
-	createBullet: function (x, y, to_x, to_y)
+	createBullet: function (x, y, to_x, to_y, weaponType)
 	{
 		shoot = {
 			from: {X:x, Y:y},
 			to: {X:to_x, Y:to_y},
-			time: Date.now()
+			time: Date.now(),
+			weaponType: weaponType,
 		}
 
 		this.stack[this.makeUniqueId()] = shoot
@@ -261,7 +295,7 @@ var ShootController = {
 
 	loopUpdate: function (id, shoot, dt)
 	{
-		if(this.lifetime != 0 && shoot.time + this.lifetime < Date.now())
+		if(shoot.weaponType.lifetime != 0 && shoot.time + shoot.weaponType.lifetime < Date.now())
 	    {
 			delete this.stack[id];
 	    }
@@ -270,11 +304,11 @@ var ShootController = {
 	loopDraw: function (id, shoot)
 	{
 		//this.drawTrigometricThing(shoot);
-    	
-    	color_percent = 1 - (Date.now() - shoot.time) / this.lifetime
+    	var wt = shoot.weaponType;
+    	color_percent = 1 - (Date.now() - shoot.time) / wt.lifetime
 
 		ctx.beginPath();
-		ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
+		ctx.strokeStyle = 'rgba('+wt.color[0]+', '+wt.color[1]+', '+wt.color[2]+', ' + color_percent +')';
 		ctx.moveTo(shoot.from.X, shoot.from.Y);
 		ctx.lineTo(shoot.to.X, shoot.to.Y);
 		ctx.stroke();
@@ -310,7 +344,6 @@ var MouseController = {
 	registerEvents: function() {
 		$(canvas).mousedown(function (e) {
 		    MouseController.click = true
-		    player.shoot()
 		});
 
 		$(canvas).mousemove(function (e) {
