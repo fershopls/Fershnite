@@ -34,8 +34,8 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#000";
   ctx.fillText("Sup Bro!", text.X, text.Y);
-  player.draw();
   ShootController.draw();
+  player.draw();
 }
 
 var player = {
@@ -93,7 +93,7 @@ var player = {
 
 var ShootController = {
 	stack: {},
-	lifetime: 2000,
+	lifetime: 400,
 	create: function(x, y, to_x, to_y)
 	{
 		shoot = {
@@ -140,9 +140,11 @@ var ShootController = {
 	{
 		if(! shoot.dead)
 	    {
+	    	color_percent = 1 - (Date.now() - shoot.time) / 800
 	    	ctx.beginPath();
 			ctx.moveTo(shoot.from.X, shoot.from.Y);
 			ctx.lineTo(shoot.to.X, shoot.to.Y);
+			ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
 			ctx.stroke();
 	    }
 	},
