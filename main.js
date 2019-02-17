@@ -27,6 +27,7 @@ function update(dt) {
 	text.Y += 25*dt
 
 	player.update(dt);
+	ShootController.update(dt);
 }
 
 function draw() {
@@ -34,6 +35,7 @@ function draw() {
   ctx.fillStyle = "#000";
   ctx.fillText("Sup Bro!", text.X, text.Y);
   player.draw();
+  ShootController.draw();
 }
 
 var player = {
@@ -46,14 +48,6 @@ var player = {
   draw: function() {
     ctx.fillStyle = this.color;
     ctx.fillRect(this.X, this.Y, this.width, this.height);
-
-    if(this.shoots)
-    {
-    	ctx.beginPath();
-		ctx.moveTo(this.shoots.from.X, this.shoots.from.Y);
-		ctx.lineTo(this.shoots.to.X, this.shoots.to.Y);
-		ctx.stroke();
-    }
   },
   update: function(dt){
   	if(input.isDown('DOWN') || input.isDown('s'))
@@ -92,8 +86,67 @@ var player = {
 		to: {X:MouseController.X, Y:MouseController.Y},
 		time: Date.now()
 	}
+	ShootController.create(this.X +this.width/2, this.Y +this.height/2,
+							MouseController.X, MouseController.Y)
   },
 };
+
+var ShootController = {
+	stack: {},
+	lifetime: 2000,
+	create: function(x, y, to_x, to_y)
+	{
+		shoot = {
+			from: {X:x, Y:y},
+			to: {X:to_x, Y:to_y},
+			time: Date.now(),
+			dead: false,
+		}
+		this.stack[this.makeUniqueId()] = shoot
+	},
+
+	makeUniqueId: function()
+	{
+		return Date.now()+"_"+(Math.floor(Math.random()*10000)+10000)
+	},
+
+	update: function (dt)
+	{
+		for (var id in this.stack) {
+			if (this.stack.hasOwnProperty(id)) {
+	        	this.loopUpdate(id, this.stack[id], dt);
+			}
+		}
+	},
+
+	draw: function ()
+	{
+		for (var id in this.stack) {
+			if (this.stack.hasOwnProperty(id)) {
+	     	   this.loopDraw(id, this.stack[id]);
+			}
+		}
+	},
+
+	loopUpdate: function (id, shoot, dt)
+	{
+		if(shoot.time + this.lifetime < Date.now())
+	    {
+			delete this.stack[id];
+	    }
+	},
+
+	loopDraw: function (id, shoot)
+	{
+		if(! shoot.dead)
+	    {
+	    	ctx.beginPath();
+			ctx.moveTo(shoot.from.X, shoot.from.Y);
+			ctx.lineTo(shoot.to.X, shoot.to.Y);
+			ctx.stroke();
+	    }
+	},
+}
 
 var MouseController = {
 	X: 0,
