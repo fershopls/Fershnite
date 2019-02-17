@@ -79,8 +79,6 @@ var player = {
   },
   shoots: false,
   shoot: function() {
-	console.log("Shoot from:", this.X, this.Y)	
-	console.log("Shoot to:", MouseController.X, MouseController.Y)	
 	this.shoots = {
 		from: {X:this.X +this.width/2, Y:this.Y +this.height/2},
 		to: {X:MouseController.X, Y:MouseController.Y},
@@ -93,14 +91,13 @@ var player = {
 
 var ShootController = {
 	stack: {},
-	lifetime: 400,
+	lifetime: 0,
 	create: function(x, y, to_x, to_y)
 	{
 		shoot = {
 			from: {X:x, Y:y},
 			to: {X:to_x, Y:to_y},
-			time: Date.now(),
-			dead: false,
+			time: Date.now()
 		}
 		this.stack[this.makeUniqueId()] = shoot
 	},
@@ -130,7 +127,7 @@ var ShootController = {
 
 	loopUpdate: function (id, shoot, dt)
 	{
-		if(shoot.time + this.lifetime < Date.now())
+		if(this.lifetime != 0 && shoot.time + this.lifetime < Date.now())
 	    {
 			delete this.stack[id];
 	    }
@@ -138,15 +135,38 @@ var ShootController = {
 
 	loopDraw: function (id, shoot)
 	{
-		if(! shoot.dead)
-	    {
-	    	color_percent = 1 - (Date.now() - shoot.time) / 800
-	    	ctx.beginPath();
-			ctx.moveTo(shoot.from.X, shoot.from.Y);
-			ctx.lineTo(shoot.to.X, shoot.to.Y);
-			ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
-			ctx.stroke();
-	    }
+    	color_percent = 1 - (Date.now() - shoot.time) / this.lifetimea
+    	ctx.beginPath();
+		ctx.strokeStyle = '#aaa';
+		//ctx.strokeStyle = 'rgba(255, 0, 0, ' + color_percent +')';
+		ctx.moveTo(shoot.from.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.to.Y);
+
+		ctx.moveTo(shoot.from.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.from.Y);
+
+		ctx.moveTo(shoot.to.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.to.Y);
+		ctx.stroke();
+		
+		// tan (o / a)
+		ct = {
+			op: (shoot.from.Y - shoot.to.Y),
+			ad: (shoot.from.X - shoot.to.X),
+		}
+		angle = Math.atan(ct.op / ct.ad),
+
+		x1 = shoot.from.X;
+		y1 = shoot.from.Y;
+		r =  100;
+		theta = angle;
+	
+		ctx.beginPath();
+		ctx.strokeStyle = 'red';
+		ctx.moveTo(x1, y1);
+		ctx.lineTo(x1 + r * Math.cos(theta), y1 + r * Math.sin(theta));
+
+		ctx.stroke();
 	},
 }
 
