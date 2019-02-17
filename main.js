@@ -1,3 +1,7 @@
+/* 
+ * MATH DESTRUCTION!!
+ * */
+
 var ctx
 var canvas
 var lastTime
@@ -20,22 +24,48 @@ $(document).ready(function(){
 	MouseController.registerEvents()
 });
 
-var text = {X: 50, Y: 50}
-
 function update(dt) {
-	text.X += 25*dt
-	text.Y += 25*dt
-
 	player.update(dt);
 	ShootController.update(dt);
 }
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#000";
-  ctx.fillText("Sup Bro!", text.X, text.Y);
   ShootController.draw();
   player.draw();
+  UI.draw();
+}
+
+var UI = {
+	draw: function ()
+	{
+  		var text = "=> " + player.fire.weapon;
+
+		ctx.font = "18px Verdana";
+		// Create gradient
+		var gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+		gradient.addColorStop("0"," magenta");
+		gradient.addColorStop("0.5", "blue");
+		gradient.addColorStop("1.0", "red");
+		// Fill with gradient
+		ctx.fillStyle = gradient;
+		ctx.fillText(text, 10, 90);
+	}
+}
+
+var weapons = {
+	shotgun: {
+		perdigons: 10,
+		rate: 975,
+		bloom: 15,
+		length: 300,
+	},
+	rifle: {
+		perdigons: 1,
+		rate: 500,
+		bloom: 5,
+		length: 600,
+	},
 }
 
 var player = {
@@ -44,12 +74,27 @@ var player = {
   Y: 270,
   width: 32,
   height: 32,
-  speed: 200,
   movement: {
   	x_speed: 0, // current speed
   	y_speed: 0, 
   	max_speed: 160, // max px per sec
   	aceleration: 30, // speed to max_speed in ms 
+  },
+  fire: {
+  	lastTime: 0,
+  	lastWeapon: null,
+  	weapon: 'shotgun',
+  },
+  nextWeapon: function()
+  {
+	if (this.fire.weapon == 'shotgun')
+		this.fire.weapon = 'rifle'
+	else
+		this.fire.weapon = 'shotgun'
+  },
+  getFireRate: function()
+  {
+  	return weapons[this.fire.weapon].rate
   },
   update: function(dt){
   	if(input.isDown('DOWN') || input.isDown('s'))
@@ -97,8 +142,19 @@ var player = {
 
 
 
-    if (input.isDown("SPACE"))
-		this.shoot(dt)
+    // Shoot thing
+    if (input.isDown("SPACE") || MouseController.click)
+    {
+    	if (Date.now() - this.fire.lastTime >= this.getFireRate())
+    	{
+			this.shoot(dt)
+	    	this.fire.lastTime = Date.now()
+    	}
+    }
+
+    // Change weapon
+    if (input.isDown("x"))
+    	this.nextWeapon();
 
 	this.hits(dt);
   },
@@ -127,27 +183,30 @@ var player = {
 		to: {X:MouseController.X, Y:MouseController.Y},
 		time: Date.now()
 	}
+	selectedWeapon = weapons[this.fire.weapon];
 	ShootController.create(this.X +this.width/2, this.Y +this.height/2,
-							MouseController.X, MouseController.Y)
+							MouseController.X, MouseController.Y,
+							selectedWeapon)
   },
 };
 
 var ShootController = {
 	stack: {},
 	lifetime: 800,
-	create: function(x, y, mouse_x, mouse_y)
+	create: function(x, y, mouse_x, mouse_y, weaponType)
 	{
 		var root_angle = this.createAngle(x, y, mouse_x, mouse_y);
-		var perdigons = 8
-		var bloom = 30 * Math.PI / 180
-		var angle = root_angle;
+		var angle = root_angle
+		var perdigons = weaponType.perdigons
+		var bloom = weaponType.bloom * Math.PI / 180
+		var length = weaponType.length
 
 		for (i = 0; i < perdigons; i++)
 		{
 			angle -= bloom /2
 			angle += bloom * Math.random()
 			
-			to = this.getShootLineToRadian(x, y, 200, angle)
+			to = this.getShootLineToRadian(x, y, length, angle)
 			this.createBullet(x, y, to.X, to.Y)
 		}
 	},
