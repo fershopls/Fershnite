@@ -117,12 +117,184 @@ $(document).ready(function(){
 		[
 			MouseController,
 			ShootController,
-			HitTextController,
+			
 			EnemyController,
 			PlayerController,
-			UIController, 
+			
+			HitTextController,
+
+			UIController,
+			AimController,
 		])
 });
+
+var AimController = {
+	
+	getPivot: function()
+	{
+		return PlayerController.center()
+	},
+
+	getAngleFromTo: function (x, y, to_x, to_y)
+	{
+		// Determine angle
+		var op = y - to_y
+		var ad = x - to_x
+		angle = Math.atan(op / ad)
+
+		// Determine side of the shoot
+		if (x > to_x)
+			angle += Math.PI
+
+		return angle // RADIANS
+	},
+
+	getToByAngle: function (x, y, len, angle)
+	{
+		return {X:x + len * Math.cos(angle), Y: y + len * Math.sin(angle)}
+	},
+
+	getMouseAngle: function ()
+	{
+		return this.getAngleFromTo(this.getPivot().X, this.getPivot().Y, MouseController.X, MouseController.Y)
+	},
+
+	draw: function(ctx)
+	{
+		var weaponType = weapons[PlayerController.fire.weapon]
+	    ctx.fillStyle = 'rgb('+weaponType.color[0]+','+weaponType.color[1]+','+weaponType.color[2]+')';
+	    ctx.beginPath();
+	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
+	    ctx.fillRect(MouseController.X-1, MouseController.Y-3-10, 2, 8);
+	    ctx.fillRect(MouseController.X-1, MouseController.Y-3 +8, 2, 8);
+
+
+		var angle = this.getMouseAngle();
+		var bloom = weaponType.bloom * Math.PI / 180
+		var length = weaponType.length
+
+		to = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle)
+		this.lineTo(ctx, to);
+		// min bloom
+		to = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle - bloom/2)
+		this.lineTo(ctx, to);
+		// max bloom
+		to = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle + bloom/2)
+		this.lineTo(ctx, to);
+	},
+
+	lineTo: function (ctx, to)
+	{
+		ctx.beginPath();
+		ctx.strokeStyle = 'gray';
+		ctx.moveTo(this.getPivot().X, this.getPivot().Y);
+		ctx.lineTo(to.X, to.Y);
+		ctx.stroke();
+	},
+}
+
+
+var ShootController = {
+	stack: {},
+	lifetime: 800,
+	create: function(x, y, mouse_x, mouse_y, weaponType)
+	{
+		var root_angle = AimController.getMouseAngle();
+		var perdigons = weaponType.perdigons
+		var bloom = weaponType.bloom * Math.PI / 180
+		var length = weaponType.length
+		console.log(length)
+
+		var bullets = [];
+		for (i = 1; i <= perdigons; i++)
+		{
+			var angle = root_angle
+			angle -= bloom /2
+			angle += bloom * Math.random()
+			
+			to = AimController.getToByAngle(x, y, length, angle)
+			var bullet = this.createBullet(x, y, to.X, to.Y, weaponType)
+			bullets.push(bullet)
+		}
+		EnemyController.checkBullets(bullets)
+	},
+
+	createBullet: function (x, y, to_x, to_y, weaponType)
+	{
+		shoot = {
+			from: {X:x, Y:y},
+			to: {X:to_x, Y:to_y},
+			time: Date.now(),
+			weaponType: weaponType,
+		}
+
+		this.stack[this.makeUniqueId()] = shoot
+		return shoot;
+	},
+
+	makeUniqueId: function()
+	{
+		return Date.now()+"_"+(Math.floor(Math.random()*10000)+10000)
+	},
+
+	update: function (dt)
+	{
+		for (var id in this.stack) {
+			if (this.stack.hasOwnProperty(id)) {
+	        	this.loopUpdate(id, this.stack[id], dt);
+			}
+		}
+	},
+
+	draw: function (ctx)
+	{
+		for (var id in this.stack) {
+			if (this.stack.hasOwnProperty(id)) {
+	     	   this.loopDraw(ctx, id, this.stack[id]);
+			}
+		}
+	},
+
+	loopUpdate: function (id, shoot, dt)
+	{
+		if(shoot.weaponType.lifetime != 0 && shoot.time + shoot.weaponType.lifetime < Date.now())
+	    {
+			delete this.stack[id];
+	    }
+	},
+
+	loopDraw: function (ctx, id, shoot)
+	{
+		//this.drawTrigometricThing(ctx, shoot);
+    	var wt = shoot.weaponType;
+    	color_percent = 1 - (Date.now() - shoot.time) / wt.lifetime
+
+		ctx.beginPath();
+		ctx.strokeStyle = 'rgba('+wt.color[0]+', '+wt.color[1]+', '+wt.color[2]+', ' + color_percent +')';
+		ctx.moveTo(shoot.from.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.to.Y);
+		ctx.stroke();
+
+	},
+
+	drawTrigometricThing: function (ctx, shoot)
+	{
+		ctx.beginPath();
+		ctx.strokeStyle = '#ddd';
+		ctx.moveTo(shoot.from.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.to.Y);
+
+		ctx.moveTo(shoot.from.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.from.Y);
+
+		ctx.moveTo(shoot.to.X, shoot.from.Y);
+		ctx.lineTo(shoot.to.X, shoot.to.Y);
+		ctx.stroke();
+	},
+}
+
+
+
 
 var UIController = {
 	health: {
@@ -133,10 +305,7 @@ var UIController = {
 	draw: function (ctx)
 	{
   		this.drawItemSolt(ctx);
-
-		this.drawAim(ctx);
 		this.drawHealth(ctx);
-
 		HitTextController.draw(ctx);
 	},
 
@@ -165,16 +334,6 @@ var UIController = {
 		ctx.fillText(text, 10, 90);
 	},
 
-	drawAim: function (ctx)
-	{
-	    // Draw AIM
-	    var c = weapons[PlayerController.fire.weapon].color;
-	    ctx.fillStyle = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
-	    ctx.beginPath();
-	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
-	    ctx.fillRect(MouseController.X-1, MouseController.Y-3-10, 2, 8);
-	    ctx.fillRect(MouseController.X-1, MouseController.Y-3 +8, 2, 8);
-	}
 }
 
 var weapons = {
@@ -225,6 +384,13 @@ var PlayerController = {
   	lastWeapon: null,
   	minSwitchTime: 1000,
   	weapon: 'smg',
+  },
+  center: function()
+  {
+  	return {
+  		X: this.X + this.width/2,
+  		Y: this.Y + this.height/2,
+  	}
   },
   nextWeapon: function()
   {
@@ -336,15 +502,10 @@ var PlayerController = {
 	//     console.log('collide')
 	// }
   },
-  shoots: false,
+
   shoot: function() {
-	this.shoots = {
-		from: {X:this.X +this.width/2, Y:this.Y +this.height/2},
-		to: {X:MouseController.X, Y:MouseController.Y},
-		time: Date.now()
-	}
 	selectedWeapon = weapons[this.fire.weapon];
-	ShootController.create(this.X +this.width/2, this.Y +this.height/2,
+	ShootController.create(this.center().X, this.center().Y,
 							MouseController.X, MouseController.Y,
 							selectedWeapon)
   },
@@ -479,122 +640,6 @@ var EnemyController = {
 	}
 }
 
-var ShootController = {
-	stack: {},
-	lifetime: 800,
-	create: function(x, y, mouse_x, mouse_y, weaponType)
-	{
-		var root_angle = this.createAngle(x, y, mouse_x, mouse_y);
-		var angle = root_angle
-		var perdigons = weaponType.perdigons
-		var bloom = weaponType.bloom * Math.PI / 180
-		var length = weaponType.length
-
-		var bullets = [];
-		for (i = 1; i <= perdigons; i++)
-		{
-			angle -= bloom /2
-			angle += bloom * Math.random()
-			
-			to = this.getShootLineToRadian(x, y, length, angle)
-			var bullet = this.createBullet(x, y, to.X, to.Y, weaponType)
-			bullets.push(bullet)
-		}
-		EnemyController.checkBullets(bullets)
-	},
-
-	createBullet: function (x, y, to_x, to_y, weaponType)
-	{
-		shoot = {
-			from: {X:x, Y:y},
-			to: {X:to_x, Y:to_y},
-			time: Date.now(),
-			weaponType: weaponType,
-		}
-
-		this.stack[this.makeUniqueId()] = shoot
-		return shoot;
-	},
-
-	createAngle: function (x, y, to_x, to_y)
-	{
-		// Determine angle
-		var op = y - to_y
-		var ad = x - to_x
-		angle = Math.atan(op / ad)
-
-		// Determine side of the shoot
-		if (x > to_x)
-			angle += Math.PI
-
-		return angle // RADIANS
-	},
-
-	makeUniqueId: function()
-	{
-		return Date.now()+"_"+(Math.floor(Math.random()*10000)+10000)
-	},
-
-	update: function (dt)
-	{
-		for (var id in this.stack) {
-			if (this.stack.hasOwnProperty(id)) {
-	        	this.loopUpdate(id, this.stack[id], dt);
-			}
-		}
-	},
-
-	draw: function (ctx)
-	{
-		for (var id in this.stack) {
-			if (this.stack.hasOwnProperty(id)) {
-	     	   this.loopDraw(ctx, id, this.stack[id]);
-			}
-		}
-	},
-
-	loopUpdate: function (id, shoot, dt)
-	{
-		if(shoot.weaponType.lifetime != 0 && shoot.time + shoot.weaponType.lifetime < Date.now())
-	    {
-			delete this.stack[id];
-	    }
-	},
-
-	loopDraw: function (ctx, id, shoot)
-	{
-		//this.drawTrigometricThing(ctx, shoot);
-    	var wt = shoot.weaponType;
-    	color_percent = 1 - (Date.now() - shoot.time) / wt.lifetime
-
-		ctx.beginPath();
-		ctx.strokeStyle = 'rgba('+wt.color[0]+', '+wt.color[1]+', '+wt.color[2]+', ' + color_percent +')';
-		ctx.moveTo(shoot.from.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.to.Y);
-		ctx.stroke();
-
-	},
-
-	drawTrigometricThing: function (ctx, shoot)
-	{
-		ctx.beginPath();
-		ctx.strokeStyle = '#ddd';
-		ctx.moveTo(shoot.from.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.to.Y);
-
-		ctx.moveTo(shoot.from.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.from.Y);
-
-		ctx.moveTo(shoot.to.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.to.Y);
-		ctx.stroke();
-	},
-
-	getShootLineToRadian: function (x, y, len, angle)
-	{
-		return {X:x + len * Math.cos(angle), Y: y + len * Math.sin(angle)}
-	},
-}
 
 var MouseController = {
 	X: 0,
