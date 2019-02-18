@@ -67,6 +67,8 @@ var UI = {
   		this.drawItemSolt();
 
 		this.drawAim();
+
+		hitText.draw();
 	},
 
 	drawItemSolt: function()
@@ -99,14 +101,16 @@ var UI = {
 var weapons = {
 	shotgun: {
 		perdigons: 10,
+		damage: 20,
 		rate: 975,
-		bloom: 15,
+		bloom: 10,
 		length: 300,
 		lifetime: 975,
 		color: [0,0,255],
 	},
 	rifle: {
 		perdigons: 1,
+		damage: 30,
 		rate: 250,
 		bloom: 5,
 		length: 600,
@@ -115,6 +119,7 @@ var weapons = {
 	},
 	smg: {
 		perdigons: 1,
+		damage: 16,
 		rate: 120,
 		bloom: 10,
 		length: 400,
@@ -255,6 +260,52 @@ var player = {
   },
 };
 
+var hitText = {
+	stack: [],
+
+	lifetime: 1000,
+
+	create: function (x, y, text)
+	{
+		while (typeof this.stack[x+'_'+y] != 'undefined')
+		{
+			y -= 20;
+		}
+		this.stack[x+'_'+y] = {
+			X: x,
+			Y: y,
+			text: text,
+			created_at: Date.now(),
+		}
+	},
+
+	draw: function ()
+	{
+		for (var id in this.stack) {
+			if (this.stack.hasOwnProperty(id)) {
+	     	   this.loopDraw(id, this.stack[id]);
+			}
+		}
+	},
+
+	loopDraw: function (id, hitt)
+	{
+		if (Date.now() - hitt.created_at > this.lifetime)
+		{
+			delete this.stack[id];
+			return false;
+		}
+
+		var text = hitt.text;
+
+		ctx.font = "12px Verdana";
+		// Fill with gradient
+		ctx.fillStyle = '#29bdff';
+		ctx.fillText(text, hitt.X, hitt.Y);
+	}
+
+}
+
 var Enemy = {
 	X: 320,
 	Y: 320,
@@ -268,17 +319,38 @@ var Enemy = {
 	    ctx.fillRect(this.X, this.Y, this.width, this.height);
 	},
 
-	checkShoot: function (shoot)
+	checkBullets: function (bullets)
+	{
+		var damage = 0
+		for (id in bullets)
+		{
+			if (bullets.hasOwnProperty(id)) {
+				var hit = this.checkBullet(bullets[id])
+				if (hit)
+				{
+					damage += bullets[id].weaponType.damage
+				}
+			}
+		}
+		
+		if (damage) this.getHitted(damage)
+	},
+
+	checkBullet: function (bullet)
 	{
 		var vec = this.getRectVectors()
 		
-		var hit = this.isColliding(shoot.from, shoot.to, vec[0], vec[1])
-		hit = hit || this.isColliding(shoot.from, shoot.to, vec[1], vec[2])
-		hit = hit || this.isColliding(shoot.from, shoot.to, vec[2], vec[3])
-		hit = hit || this.isColliding(shoot.from, shoot.to, vec[3], vec[0])
+		var hit = this.isColliding(bullet.from, bullet.to, vec[0], vec[1])
+		hit = hit || this.isColliding(bullet.from, bullet.to, vec[1], vec[2])
+		hit = hit || this.isColliding(bullet.from, bullet.to, vec[2], vec[3])
+		hit = hit || this.isColliding(bullet.from, bullet.to, vec[3], vec[0])
 
-		console.log(1)
+		return hit
+	},
 
+	getHitted: function (damage)
+	{
+		hitText.create(this.X + this.width/3, this.Y -15, damage)
 	},
 
 	isColliding: function (a, b, c, d)
@@ -318,14 +390,17 @@ var ShootController = {
 		var bloom = weaponType.bloom * Math.PI / 180
 		var length = weaponType.length
 
+		var bullets = [];
 		for (i = 1; i <= perdigons; i++)
 		{
 			angle -= bloom /2
 			angle += bloom * Math.random()
 			
 			to = this.getShootLineToRadian(x, y, length, angle)
-			this.createBullet(x, y, to.X, to.Y, weaponType)
+			var bullet = this.createBullet(x, y, to.X, to.Y, weaponType)
+			bullets.push(bullet)
 		}
+		Enemy.checkBullets(bullets)
 	},
 
 	createBullet: function (x, y, to_x, to_y, weaponType)
@@ -338,8 +413,7 @@ var ShootController = {
 		}
 
 		this.stack[this.makeUniqueId()] = shoot
-
-		Enemy.checkShoot(shoot)
+		return shoot;
 	},
 
 	createAngle: function (x, y, to_x, to_y)
