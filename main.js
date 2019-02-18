@@ -187,29 +187,91 @@ var AimController = {
 	    this.drawBloomArea(ctx, weapon)
 	},
 
+	lineToAngleWithRelativeBloom: function(pivot, length, angle, abs_bloom, rel_bloom)
+	{
+		return this.getToByAngle(pivot.X, pivot.Y, length, angle + (abs_bloom/2 * rel_bloom))
+	},
+
 	drawBloomArea: function (ctx, weapon)
 	{
+		var debug = false;
 		var angle = this.getMouseAngle();
 		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
-		
+		var pivot = this.getPivot();
 		// Bloom Points
-		to1 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle - bloom/2)
-		to2 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle)
-		to3 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle + bloom/2)
+		var to = {
+			0: this.lineToAngleWithRelativeBloom(this.getPivot(), length, angle, bloom, -1),
+			5: this.lineToAngleWithRelativeBloom(this.getPivot(), length, angle, bloom, -.5),
+			1: this.lineToAngleWithRelativeBloom(this.getPivot(), length, angle, bloom, 0),
+			15: this.lineToAngleWithRelativeBloom(this.getPivot(), length, angle, bloom, .5),
+			2: this.lineToAngleWithRelativeBloom(this.getPivot(), length, angle, bloom, 1),	
+		}
 		
+		var hitTests = [
+			this.createHitTestLine(to[2], to[1]),
+			this.createHitTestLine(to[1], to[0]),
+		]
+		for (id in to)
+		{
+			if (to.hasOwnProperty(id))
+			{
+				var _to = this.createHitTestLine(pivot, to[id])
+				hitTests.push(_to)
+			}
+		}
+
+		// Draw Hit Tests Lines
+		ctx.beginPath()
+		for (id in hitTests)
+		{
+			if (hitTests.hasOwnProperty(id))
+			{
+				var ht = hitTests[id]
+				ctx.moveTo(ht.from.X, ht.from.Y);
+				ctx.lineTo(ht.to.X, ht.to.Y);
+			}
+		}
+		if (debug)
+			ctx.stroke()
+
+		// Do hit test lines
+		var isCollidingWithEnemy = false;
+		for (id in hitTests)
+		{
+			if (hitTests.hasOwnProperty(id))
+			{
+				var ht = hitTests[id]
+				if (EnemyController.checkBulletCollide(ht))
+					isCollidingWithEnemy = true;
+			}
+		}
+		
+		// Draw area shape
+
 		ctx.beginPath()
 		ctx.moveTo(this.getPivot().X, this.getPivot().Y);
-		ctx.lineTo(to1.X, to1.Y);
-		ctx.lineTo(to2.X, to2.Y);
-		ctx.lineTo(to3.X, to3.Y);
+		ctx.lineTo(to[0].X, to[0].Y);
+		ctx.lineTo(to[1].X, to[1].Y);
+		ctx.lineTo(to[2].X, to[2].Y);
 		ctx.lineTo(this.getPivot().X, this.getPivot().Y);
 
 		g = 200
 		if (MouseController.click)
 			g = 125
+
 		ctx.fillStyle = 'rgba('+g+','+g+','+g+',0.1)'
+		if (isCollidingWithEnemy)
+		{
+			PlayerController.shoot()
+			ctx.fillStyle = 'rgba(255,0,0,0.2)'
+		}
 		ctx.fill()
+	},
+
+	createHitTestLine: function(from, to)
+	{
+		return {from: from, to: to}
 	},
 
 	drawCursor: function (ctx, fillStyle)
@@ -696,13 +758,7 @@ var PlayerController = {
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
     {
-    	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().get('fireRate'))
-    	{
-			this.shoot(dt)
-	    	this.lastFireTime = Date.now()
-    		
-    		Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
-    	}
+    	this.shoot(dt)
     }
 
     // Change weapon
@@ -740,9 +796,15 @@ var PlayerController = {
   },
 
   shoot: function() {
-	ShootController.create(this.center().X, this.center().Y,
-							MouseController.X, MouseController.Y,
-							WeaponController.getCurrentWeapon())
+  	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().get('fireRate'))
+	{
+		ShootController.create(this.center().X, this.center().Y,
+			MouseController.X, MouseController.Y,
+			WeaponController.getCurrentWeapon())
+    	
+    	this.lastFireTime = Date.now()
+		Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
+	}
   },
 };
 
@@ -840,7 +902,7 @@ var EnemyController = {
 		for (id in bullets)
 		{
 			if (bullets.hasOwnProperty(id)) {
-				var hit = this.checkBullet(bullets[id])
+				var hit = this.checkBulletCollide(bullets[id])
 				if (hit)
 				{
 					damage += bullets[id].weapon.get('damage')
@@ -851,7 +913,7 @@ var EnemyController = {
 		if (damage) this.getHitted(damage)
 	},
 
-	checkBullet: function (bullet)
+	checkBulletCollide: function (bullet)
 	{
 		var vec = this.getRectVectors()
 		
