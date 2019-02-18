@@ -105,6 +105,38 @@ var Core = {
 
 
 /*==========================================================================================
+=            #SPRITE ClASS                     =============================================
+==========================================================================================*/
+function SpriteSheet (stack)
+{
+	for (id in stack)
+	{
+		if (stack.hasOwnProperty(id))
+		{
+			// 
+		}
+	}
+
+	this.stack = stack
+	this.currentId = null;
+
+	this.set = function(id)
+	{
+		if (stack.hasOwnProperty(id))
+		{
+			this.currentId = id;
+		}
+	}
+
+	this.get = function (id)
+	{
+		if (id && stack.hasOwnProperty(id))
+			return this.stack[id]
+		return this.stack[this.currentId]
+	}
+}
+
+/*==========================================================================================
 =            #SOUND CLASS                      =============================================
 ==========================================================================================*/
 
@@ -124,11 +156,15 @@ function sound(src) {
   }
 }
 
+/*==========================================================================================
+=            #RESOURCES #INIT                  =============================================
+==========================================================================================*/
 $(document).ready(function(){
 	resources.load([
 	    'assets/guns/shotgun.png',
 	    'assets/gui.png',
 	    'assets/player.png',
+	    'assets/gun.png',
 	]);
 	resources.onReady(function(){
 		Core.init(document.getElementById('canshoot'),
@@ -263,15 +299,12 @@ var AimController = {
 		ctx.lineTo(to[2].X, to[2].Y);
 		ctx.lineTo(this.getPivot().X, this.getPivot().Y);
 
-		g = 200
-		if (MouseController.click)
-			g = 125
-
-		ctx.fillStyle = 'rgba('+g+','+g+','+g+',0.1)'
+		ctx.fillStyle = 'rgba(255,255,255,0.25)'
 		if (isCollidingWithEnemy)
 		{
 			PlayerController.shoot()
-			ctx.fillStyle = 'rgba(255,0,0,0.2)'
+			if (Core.debug)
+				ctx.fillStyle = 'rgba(255,0,0,0.5)'
 		}
 		ctx.fill()
 	},
@@ -429,6 +462,17 @@ var PlayerUIController = {
 		}
 	},
 
+	sprite: [],
+	init: function ()
+	{
+		// url, pos, size, speed, frames, dir, once
+		this.sprite = new SpriteSheet({
+	  		rifle: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
+	  		shotgun: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
+	  		smg: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
+		})
+	},
+
 	damage: function (totalDamage)
 	{
 		var damage = 0;
@@ -459,24 +503,24 @@ var PlayerUIController = {
 
 	draw: function (ctx)
 	{
-  		this.drawItemSolt(ctx);
 		this.drawHealth(ctx);
 		this.drawShield(ctx);
 		HitTextController.draw(ctx);
 		this.drawGUI(ctx);
+  		this.drawItemSolt(ctx);
 	},
 
-	drawGUIIMG: null,
 	drawGUI: function(ctx)
 	{
 		ctx.drawImage(resources.get('assets/gui.png'), 0, 0);
-
-		this.drawShotgun(ctx);
 	},
 
-	drawShotgun: function(ctx)
+	drawItemSolt: function(ctx)
 	{
-		ctx.drawImage(resources.get('assets/guns/shotgun.png'), 44, Core.data.canvas.height - 65);
+		ctx.save()
+		ctx.translate(94, Core.data.canvas.height - 76)
+		this.sprite.get(WeaponController.getCurrentWeaponId()).render(ctx)
+		ctx.restore()
 	},
 
 	drawHealth: function (ctx)
@@ -496,21 +540,6 @@ var PlayerUIController = {
 		ctx.strokeStyle = ctx.fillStyle
 		ctx.strokeRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width, this.ui.stats.height)
 		ctx.fillRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width*fillRate, this.ui.stats.height)
-	},
-
-	drawItemSolt: function(ctx)
-	{
-		var text = "=> " + WeaponController.getCurrentWeaponId();
-
-		ctx.font = "18px Verdana";
-		// Create gradient
-		var gradient = ctx.createLinearGradient(0, 0, Core.data.canvas.width, 0);
-		gradient.addColorStop("0"," magenta");
-		gradient.addColorStop("0.5", "blue");
-		gradient.addColorStop("1.0", "red");
-		// Fill with gradient
-		ctx.fillStyle = gradient;
-		ctx.fillText(text, 50, Core.data.canvas.height - 20);
 	},
 
 }
@@ -731,6 +760,17 @@ var PlayerController = {
   		Y: this.Y + this.height/2,
   	}
   },
+  sprite: [],
+  init: function ()
+  {
+  	// url, pos, size, speed, frames, dir, once
+  	this.sprite = new SpriteSheet({
+	  	stand: new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0]),
+	  	walk: new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
+  	})
+  	this.sprite.set('stand')
+  },
+
   update: function(dt){
   	if(input.isDown('DOWN') || input.isDown('s'))
     {
@@ -800,17 +840,21 @@ var PlayerController = {
     	}
     }
 
-	// url, pos, size, speed, frames, dir, once
-    this.sprite.update(dt);
+    if (this.movement.x_speed != 0 || this.movement.y_speed != 0)
+    	this.sprite.set('walk')
+    else
+    	this.sprite.set('stand')
+	
+    this.sprite.get().update(dt);
 
 
 	this.hits(dt);
   },
-  sprite: new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0, 1, 2, 3, 2, 1]),
+
   draw: function(ctx) {
   	ctx.save();
     ctx.translate(this.X, this.Y);
-    this.sprite.render(ctx);
+    this.sprite.get().render(ctx);
     ctx.restore();
 
     ctx.fillStyle = 'rgba(0,0,255,0.4)';
