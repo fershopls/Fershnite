@@ -376,6 +376,10 @@ var PlayerUIController = {
 
 	update: function (dt)
 	{
+		if (this.stats.health.qty > this.stats.health.max)
+			this.stats.health.qty = this.stats.health.max
+		if (this.stats.shield.qty > this.stats.shield.max)
+			this.stats.shield.qty = this.stats.shield.max
 		if (this.stats.health.qty <= 0)
 		{
 			this.stats.dead = true
@@ -422,7 +426,7 @@ var PlayerUIController = {
 		gradient.addColorStop("1.0", "red");
 		// Fill with gradient
 		ctx.fillStyle = gradient;
-		ctx.fillText(text, 10, 90);
+		ctx.fillText(text, 50, Core.data.canvas.height - 20);
 	},
 
 }
@@ -577,9 +581,9 @@ var WeaponController = {
 				damage: 20,
 				fireRate: 975,
 				bloom: 40,
-				length: 300,
+				length: 250,
 				color: [0,0,255],
-				maxLostDamageRate: .75,
+				maxLostDamageRate: 1.5,
 				lostDamageRoundBy: 4,
 			},
 			rifle: {
@@ -587,7 +591,7 @@ var WeaponController = {
 				damage: 30,
 				fireRate: 250,
 				bloom: 5,
-				length: 600,
+				length: 400,
 				color: [255,0,255],
 				maxLostDamageRate: .50,
 				lostDamageRoundBy: 6,
@@ -597,7 +601,7 @@ var WeaponController = {
 				damage: 16,
 				fireRate: 120,
 				bloom: 10,
-				length: 400,
+				length: 200,
 				color: [255,0,0],
 				maxLostDamageRate: .7,
 				lostDamageRoundBy: 2,
@@ -869,6 +873,8 @@ var EnemyController = {
 		lostDamage = gunDamage /totalLength * (hitLength-fixTotalLength)
 		lostDamage = lostDamage * weapon.get('maxLostDamageRate')
 		damage = (gunDamage - lostDamage)
+		if (damage < 1)
+			damage = 1
 		damage = Math.ceil(damage/weapon.get('lostDamageRoundBy'))*weapon.get('lostDamageRoundBy'); // round every 5
 		
 		if (damage > gunDamage)
