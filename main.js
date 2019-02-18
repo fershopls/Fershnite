@@ -564,7 +564,7 @@ var PlayerUIController = {
 
 function Weapon (settings) {
 	this.settings = {};
-
+    	
 	this.init = function ()
 	{
 		var defaultSettings = {
@@ -588,6 +588,21 @@ function Weapon (settings) {
 		this.settings = Object.assign(defaultSettings, settings);
 	}
 	this.init();
+
+  	this.bloom = {
+	  	bloom_increase: 0, // current speed
+	  	aceleration: 10, // speed to max_speed in ms 
+	}
+
+	this.updateBloom = function()
+	{
+		ms = this.movement.max_speed / this.movement.aceleration
+    	this.movement.y_speed += ms * dt
+		var playerVelocityAverage = Math.abs(PlayerController.movement.x_speed)+Math.abs(PlayerController.movement.y_speed)
+    	var bloomIncrementRate = 1/10*playerVelocityAverage
+    	console.log(playerVelocityAverage)
+    	bloom = bloom + bloom * bloomIncrementRate
+	}
 	
 
 	this.get = function(key) {
@@ -608,9 +623,9 @@ function Weapon (settings) {
     		return weapon.get('fireRate')
     	},
     	// Return bloom in RADIANS
-    	bloom: function (weapon, value)
+    	bloom: function (weapon, bloom)
     	{
-    		return value * Math.PI / 180
+    		return bloom * Math.PI / 180
     	},
     }
 
@@ -759,9 +774,11 @@ var PlayerController = {
   height: 32,
   movement: {
   	x_speed: 0, // current speed
-  	y_speed: 0, 
-  	max_speed: 160, // max px per sec
-  	aceleration: 10, // speed to max_speed in ms 
+  	y_speed: 0,
+  	x_aceleration: 0,
+  	y_aceleration: 0,
+  	max_speed: 10, // max px per sec
+  	aceleration: 500, // 0 speed to max_speed in ms 
   },
   lastFireTime: 0,
   center: function()
@@ -786,20 +803,25 @@ var PlayerController = {
   	if(input.isDown('DOWN') || input.isDown('s'))
     {
     	ms = this.movement.max_speed / this.movement.aceleration
-    	this.movement.y_speed += ms * dt
+    	this.movement.y_aceleration += ms
     }
 
     if(input.isDown('UP') || input.isDown('w'))
     {
     	ms = this.movement.max_speed / this.movement.aceleration
-    	this.movement.y_speed -= ms * dt
+    	this.movement.y_aceleration -= ms
     }
 
     if ((this.movement.y_speed > 0 && !(input.isDown('DOWN') || input.isDown('s')))
     	|| (this.movement.y_speed < 0 && !(input.isDown('UP') || input.isDown('w'))))
     {
     	this.movement.y_speed = 0
+    	this.movement.y_aceleration = 0
     }
+
+	this.movement.y_speed = this.movement.y_aceleration * dt * 1000
+    if (Math.abs(this.movement.y_speed) > this.movement.max_speed)
+    	this.movement.y_speed = this.movement.max_speed * this.movement.y_speed/Math.abs(this.movement.y_speed)
 
     this.Y += this.movement.y_speed
 
@@ -809,24 +831,27 @@ var PlayerController = {
   	if(input.isDown('RIGHT') || input.isDown('d'))
     {
     	ms = this.movement.max_speed / this.movement.aceleration
-    	this.movement.x_speed += ms * dt
+    	this.movement.x_aceleration += ms
     }
 
     if(input.isDown('LEFT') || input.isDown('a'))
     {
     	ms = this.movement.max_speed / this.movement.aceleration
-    	this.movement.x_speed -= ms * dt
+    	this.movement.x_aceleration -= ms
     }
 
     if ((this.movement.x_speed > 0 && !(input.isDown('RIGHT') || input.isDown('d')))
     	|| (this.movement.x_speed < 0 && !(input.isDown('LEFT') || input.isDown('a'))))
     {
     	this.movement.x_speed = 0
+    	this.movement.x_aceleration = 0
     }
 
+	this.movement.x_speed = this.movement.x_aceleration * dt * 1000
+	if (Math.abs(this.movement.x_speed) > this.movement.max_speed)
+    	this.movement.x_speed = this.movement.max_speed * this.movement.x_speed/Math.abs(this.movement.x_speed)
+    
     this.X += this.movement.x_speed
-
-
 
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
@@ -870,7 +895,23 @@ var PlayerController = {
 
     ctx.fillStyle = 'rgba(0,0,255,0.4)';
     if (Core.debug)
+    {
     	ctx.fillRect(this.X, this.Y, this.width, this.height);
+    	
+    	// Debug velocity
+    	var text = JSON.stringify(this.movement)
+    	text = text.split(',').join("\n")
+		ctx.save();
+		ctx.translate(10, 10);
+		ctx.font = "13px Arial";
+		ctx.fillStyle = 'white'
+
+		var lineheight = 15;
+		var lines = text.split('\n');
+		for (var i = 0; i<lines.length; i++)
+		    ctx.fillText(lines[i], 0, 0 + (i*lineheight) );
+		ctx.restore();
+    }
   },
   hits: function(dt) {
 	if (this.X > Core.data.canvas.width - this.width)
