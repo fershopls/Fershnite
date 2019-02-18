@@ -162,26 +162,25 @@ var AimController = {
 	draw: function(ctx)
 	{
 		var weaponType = weapons[PlayerController.fire.weapon]
-	    ctx.fillStyle = 'rgb('+weaponType.color[0]+','+weaponType.color[1]+','+weaponType.color[2]+')';
-	    ctx.beginPath();
-	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
-	    ctx.fillRect(MouseController.X-1, MouseController.Y-3-10, 2, 8);
-	    ctx.fillRect(MouseController.X-1, MouseController.Y-3 +8, 2, 8);
+	    
+	    var fillStyle = 'rgb('+weaponType.color[0]+','+weaponType.color[1]+','+weaponType.color[2]+')';
+	    
+	    this.drawCursor(ctx, fillStyle)
+	    this.drawBloomArea(ctx, weaponType)
+	},
 
-
+	drawBloomArea: function (ctx, weaponType)
+	{
 		var angle = this.getMouseAngle();
 		var bloom = weaponType.bloom * Math.PI / 180
 		var length = weaponType.length
-
-		ctx.beginPath()
 		
-		// min bloom
+		// Bloom Points
 		to1 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle - bloom/2)
-		// center aim
 		to2 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle)
-		// max bloom
 		to3 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle + bloom/2)
 		
+		ctx.beginPath()
 		ctx.moveTo(this.getPivot().X, this.getPivot().Y);
 		ctx.lineTo(to1.X, to1.Y);
 		ctx.lineTo(to2.X, to2.Y);
@@ -194,6 +193,16 @@ var AimController = {
 		ctx.fillStyle = 'rgba('+g+','+g+','+g+',0.1)'
 		ctx.fill()
 	},
+
+	drawCursor: function (ctx, fillStyle)
+	{
+		ctx.beginPath();
+		ctx.fillStyle = fillStyle
+	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
+	    ctx.fillRect(MouseController.X-1, MouseController.Y-3-10, 2, 8);
+	    ctx.fillRect(MouseController.X-1, MouseController.Y-3 +8, 2, 8);
+	},
+
 }
 
 
@@ -344,7 +353,7 @@ var weapons = {
 		perdigons: 10,
 		damage: 20,
 		rate: 975,
-		bloom: 10,
+		bloom: 40,
 		length: 300,
 		lifetime: 975,
 		color: [0,0,255],
@@ -379,7 +388,7 @@ var PlayerController = {
   	x_speed: 0, // current speed
   	y_speed: 0, 
   	max_speed: 160, // max px per sec
-  	aceleration: 30, // speed to max_speed in ms 
+  	aceleration: 10, // speed to max_speed in ms 
   },
   fire: {
   	lastTime: 0,
