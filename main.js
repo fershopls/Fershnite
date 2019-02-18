@@ -422,6 +422,7 @@ var WeaponController = {
 				length: 300,
 				lifetime: 975,
 				color: [0,0,255],
+				lostDamageRate: .75,
 			},
 			rifle: {
 				perdigons: 1,
@@ -431,6 +432,7 @@ var WeaponController = {
 				length: 600,
 				lifetime: 250,
 				color: [255,0,255],
+				lostDamageRate: .50,
 			},
 			smg: {
 				perdigons: 1,
@@ -440,6 +442,7 @@ var WeaponController = {
 				length: 400,
 				lifetime: 100,
 				color: [255,0,0],
+				lostDamageRate: .7,
 			},
 		}
 	}
@@ -631,6 +634,14 @@ var EnemyController = {
 	height: 50,
 	color: 'red',
 	
+	center: function()
+	{
+		return {
+			X: this.X + this.width/2,
+			Y: this.Y + this.height/2,
+		}
+	},
+
 	draw: function (ctx)
 	{
 	    ctx.fillStyle = this.color;
@@ -666,10 +677,32 @@ var EnemyController = {
 		return hit
 	},
 
-	getHitted: function (damage)
+	getHitted: function (gunDamage)
 	{
-		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage)
+		var hitLength = this.getLengthShoot()
+		var currentWeapon = WeaponController.getCurrentWeapon()
+
+		fixTotalLength = PlayerController.width/2 + this.width/2
+		totalLength = currentWeapon.length
+		lostDamage = gunDamage /totalLength * (hitLength-fixTotalLength)
+		lostDamage = lostDamage * currentWeapon.lostDamageRate
+		damage = Math.ceil(gunDamage - lostDamage)
+		
+		if (damage > gunDamage)
+			damage = gunDamage
+
 		UIController.health.qty -= damage;
+		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage)
+	},
+
+	getLengthShoot: function()
+	{
+		// where dx is the difference between the x-coordinates of the points
+		// and  dy is the difference between the y-coordinates of the points
+		// sqrt(dx^2 + dy^2)
+		var dx = PlayerController.center().X - this.center().X
+		var dy = PlayerController.center().Y - this.center().Y
+		return Math.sqrt(dx**2 + dy**2)
 	},
 
 	isColliding: function (a, b, c, d)
@@ -677,6 +710,7 @@ var EnemyController = {
 		denominator = ((b.X - a.X) * (d.Y - c.Y)) - ((b.Y - a.Y) * (d.X - c.X));
 		numerator1 = ((a.Y - c.Y) * (d.X - c.X)) - ((a.X - c.X) * (d.Y - c.Y));
 		numerator2 = ((a.Y - c.Y) * (b.X - a.X)) - ((a.X - c.X) * (b.Y - a.Y));
+
 
     	// Detect coincident lines (has a problem, read below)
     	if (denominator == 0) return numerator1 == 0 && numerator2 == 0;
