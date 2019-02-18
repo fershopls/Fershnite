@@ -134,10 +134,8 @@ $(document).ready(function(){
 			PlayerController,
 			
 
-			UIController,
 			AimController,
-
-			HitTextController,
+			PlayerUIController,
 		])
 });
 
@@ -335,31 +333,81 @@ var ShootController = {
 
 
 /*==========================================================================================
-=            #UI CONTROLLER                    =============================================
+=            #PLAYER UI CONTROLLER             =============================================
 ==========================================================================================*/
 
 
-var UIController = {
-	health: {
-		qty: 100,
-		max: 100,
+var PlayerUIController = {
+	stats: {
+		dead: false,
+		health: {
+			qty: 100,
+			max: 100,
+		},
+		shield: {
+			qty: 100,
+			max: 100,
+		}
+	},
+
+	ui: {
+		stats: {
+			width: 200,
+			height: 18,
+			margin: 40,
+			padding: 18+8,
+		}
+	},
+
+	damage: function (totalDamage)
+	{
+		var damage = 0;
+		if (totalDamage <= this.stats.shield.qty)
+		{
+			this.stats.shield.qty -= totalDamage
+		}
+		else
+		{
+			damage = this.stats.shield.qty
+			this.stats.shield.qty = 0
+			this.stats.health.qty -= totalDamage - damage
+		}
+	},
+
+	update: function (dt)
+	{
+		if (this.stats.health.qty <= 0)
+		{
+			this.stats.dead = true
+			this.stats.health.qty = 0
+		}
 	},
 
 	draw: function (ctx)
 	{
   		this.drawItemSolt(ctx);
 		this.drawHealth(ctx);
+		this.drawShield(ctx);
 		HitTextController.draw(ctx);
 	},
 
 	drawHealth: function (ctx)
 	{
-		var len = 200
+		this.drawStatBar(ctx, 'green', 1/this.stats.health.max*this.stats.health.qty, 0)
+	},
+
+	drawShield: function (ctx)
+	{
+		this.drawStatBar(ctx, 'aqua', 1/this.stats.shield.max*this.stats.shield.qty, this.ui.stats.padding)
+	},
+
+	drawStatBar: function (ctx, color, fillRate, padding)
+	{
 		ctx.beginPath()
-		ctx.fillStyle = 'red'
-		ctx.fillRect(Core.data.canvas.width/2 - len/2, Core.data.canvas.height - 40, len, 20)
-		ctx.fillStyle = 'green'
-		ctx.fillRect(Core.data.canvas.width/2 - len/2, Core.data.canvas.height - 40, len/this.health.max*this.health.qty, 20)
+		ctx.fillStyle = this.stats.dead? 'red' : color
+		ctx.strokeStyle = ctx.fillStyle
+		ctx.strokeRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width, this.ui.stats.height)
+		ctx.fillRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width*fillRate, this.ui.stats.height)
 	},
 
 	drawItemSolt: function(ctx)
@@ -826,7 +874,7 @@ var EnemyController = {
 		if (damage > gunDamage)
 			damage = gunDamage
 
-		UIController.health.qty -= damage;
+		PlayerUIController.damage(damage);
 		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage)
 	},
 
