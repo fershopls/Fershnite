@@ -2,9 +2,100 @@
  * MATH DESTRUCTION!!
  * */
 
-var ctx
-var canvas
-var lastTime
+var Core = {
+
+	modules: [],
+
+	addModule: function (Module)
+	{
+		this.modules.push(modules)
+	},
+
+	data: {
+		canvas: null,
+		ctx: null,
+		lastTime: 0,
+		dt: 0,
+	},
+
+	sound: {},
+
+	init: function (canvas, modules)
+	{
+		this.modules = modules
+		
+		this.sound = this.loadSound()
+
+		this.data.canvas = canvas
+		this.data.ctx = this.data.canvas.getContext("2d")
+		
+		this.initModules()
+
+		this.mainBucle()
+	},
+
+	loadSound: function ()
+	{
+		return {
+			fire: {
+			'rifle': new sound("assets/shoot.mp3"),
+			'shotgun': new sound("assets/shotgun.mp3"),
+			'smg': new sound("assets/smg.mp3"),
+			},
+			weapon: new sound("assets/switch_weapon.mp3"),
+		}
+	},
+
+	// TODO CHEKC DT UNIT
+	mainBucle: function ()
+	{
+		var now = Date.now();
+		Core.data.dt = (now - Core.data.lastTime) / 1000.0;
+		Core.update(Core.data.dt);
+	  	Core.draw(Core.data.ctx, Core.data.canvas);
+		requestAnimationFrame(Core.mainBucle);
+		Core.data.lastTime = now;
+	},
+
+	initModules: function ()
+	{
+		for (var id in this.modules) {
+			if (this.modules.hasOwnProperty(id)) {
+				if (this.modules[id].hasOwnProperty('init'))
+				{
+					this.modules[id].init(this)
+				}
+			}
+		}
+	},
+
+	update: function (dt)
+	{
+		for (var id in this.modules) {
+			if (this.modules.hasOwnProperty(id)) {
+				if (this.modules[id].hasOwnProperty('update'))
+				{
+					this.modules[id].update(dt)
+				}
+			}
+		}
+	},
+
+	draw: function (ctx, canvas)
+	{
+		ctx.clearRect(0, 0, Core.data.canvas.width, Core.data.canvas.height);
+		for (var id in this.modules) {
+			if (this.modules.hasOwnProperty(id)) {
+				if (this.modules[id].hasOwnProperty('draw'))
+				{
+					this.modules[id].draw(ctx, canvas)
+				}
+			}
+		}
+	},
+
+
+}
 
 function sound(src) {
   this.sound = document.createElement("audio");
@@ -21,63 +112,51 @@ function sound(src) {
   }
 }
 
-function main () {
-
-	var now = Date.now();
-	var dt = (now - lastTime) / 1000.0;
-	if (!dt) dt = 0
-  	update(dt);
-  	draw();
-	requestAnimationFrame(main);
-	lastTime = now;
-}
-
 $(document).ready(function(){
-	sounds = {
-		fire: {
-			'rifle': new sound("assets/shoot.mp3"),
-			'shotgun': new sound("assets/shotgun.mp3"),
-			'smg': new sound("assets/smg.mp3"),
-		},
-		weapon: new sound("assets/switch_weapon.mp3"),
-	}
-
-	canvas = document.getElementById('canshoot');
-	ctx = canvas.getContext("2d");
-	main();
-	MouseController.registerEvents()
+	Core.init(document.getElementById('canshoot'),
+		[
+			MouseController,
+			ShootController,
+			HitTextController,
+			EnemyController,
+			PlayerController,
+			UIController, 
+		])
 });
 
-function update(dt) {
-	player.update(dt);
-	ShootController.update(dt);
-}
-
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ShootController.draw();
-  Enemy.draw();
-  player.draw();
-  UI.draw();
-}
-
-var UI = {
-	draw: function ()
-	{
-  		this.drawItemSolt();
-
-		this.drawAim();
-
-		hitText.draw();
+var UIController = {
+	health: {
+		qty: 100,
+		max: 100,
 	},
 
-	drawItemSolt: function()
+	draw: function (ctx)
 	{
-		var text = "=> " + player.fire.weapon;
+  		this.drawItemSolt(ctx);
+
+		this.drawAim(ctx);
+		this.drawHealth(ctx);
+
+		HitTextController.draw(ctx);
+	},
+
+	drawHealth: function (ctx)
+	{
+		var len = 200
+		ctx.beginPath()
+		ctx.fillStyle = 'red'
+		ctx.fillRect(Core.data.canvas.width/2 - len/2, Core.data.canvas.height - 40, len, 20)
+		ctx.fillStyle = 'green'
+		ctx.fillRect(Core.data.canvas.width/2 - len/2, Core.data.canvas.height - 40, len/this.health.max*this.health.qty, 20)
+	},
+
+	drawItemSolt: function(ctx)
+	{
+		var text = "=> " + PlayerController.fire.weapon;
 
 		ctx.font = "18px Verdana";
 		// Create gradient
-		var gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+		var gradient = ctx.createLinearGradient(0, 0, Core.data.canvas.width, 0);
 		gradient.addColorStop("0"," magenta");
 		gradient.addColorStop("0.5", "blue");
 		gradient.addColorStop("1.0", "red");
@@ -86,10 +165,10 @@ var UI = {
 		ctx.fillText(text, 10, 90);
 	},
 
-	drawAim: function ()
+	drawAim: function (ctx)
 	{
 	    // Draw AIM
-	    var c = weapons[player.fire.weapon].color;
+	    var c = weapons[PlayerController.fire.weapon].color;
 	    ctx.fillStyle = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
 	    ctx.beginPath();
 	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
@@ -128,7 +207,7 @@ var weapons = {
 	},
 }
 
-var player = {
+var PlayerController = {
   color: "#00A",
   X: 220,
   Y: 270,
@@ -216,8 +295,8 @@ var player = {
     {
     	if (Date.now() - this.fire.lastTime >= this.getFireRate())
     	{
-    		sounds.fire[this.fire.weapon].sound.currentTime = 0
-    		sounds.fire[this.fire.weapon].play();
+    		Core.sound.fire[this.fire.weapon].sound.currentTime = 0
+    		Core.sound.fire[this.fire.weapon].play();
 			this.shoot(dt)
 	    	this.fire.lastTime = Date.now()
     	}
@@ -227,28 +306,28 @@ var player = {
     if (input.isDown("x"))
     {
     	this.nextWeapon();
-    	sounds.weapon.play()
+    	Core.sound.weapon.play()
     }
 
 	this.hits(dt);
   },
-  draw: function() {
+  draw: function(ctx) {
     ctx.fillStyle = this.color;
     ctx.fillRect(this.X, this.Y, this.width, this.height);
   },
   hits: function(dt) {
-	if (this.X > canvas.width - this.width)
-		this.X = canvas.width - this.width
-	if (this.Y > canvas.height - this.height)
-		this.Y = canvas.height - this.height
+	if (this.X > Core.data.canvas.width - this.width)
+		this.X = Core.data.canvas.width - this.width
+	if (this.Y > Core.data.canvas.height - this.height)
+		this.Y = Core.data.canvas.height - this.height
 	if (this.X < 0)
 		this.X = 0
 	if (this.Y < 0)
 		this.Y = 0
 
-	// Enemy hit
+	// EnemyController hit
 	var rect1 = {x: this.X, y: this.Y, width: this.width, height: this.height}
-	var rect2 = {x: Enemy.X, y: Enemy.Y, width: Enemy.width, height: Enemy.height}
+	var rect2 = {x: EnemyController.X, y: EnemyController.Y, width: EnemyController.width, height: EnemyController.height}
 
 	// if (rect1.x < rect2.x + rect2.width &&
 	//    rect1.x + rect1.width > rect2.x &&
@@ -271,7 +350,7 @@ var player = {
   },
 };
 
-var hitText = {
+var HitTextController = {
 	stack: [],
 
 	lifetime: 650,
@@ -295,19 +374,19 @@ var hitText = {
 		})
 	},
 
-	draw: function ()
+	draw: function (ctx)
 	{
 		for (var id in this.stack) {
 			if (this.stack.hasOwnProperty(id)) {
 				if (Date.now() - this.stack[id].created_at > this.lifetime)
 					this.stack.splice(id, 1)
 				else
-					this.loopDraw(id, this.stack[id])
+					this.loopDraw(ctx, id, this.stack[id])
 			}
 		}
 	},
 	
-	loopDraw: function (id, hitt)
+	loopDraw: function (ctx, id, hitt)
 	{
 		var text = hitt.text;
 		ctx.save();
@@ -326,14 +405,14 @@ var hitText = {
 
 }
 
-var Enemy = {
+var EnemyController = {
 	X: 320,
 	Y: 120,
 	width: 50,
 	height: 50,
 	color: 'red',
 	
-	draw: function ()
+	draw: function (ctx)
 	{
 	    ctx.fillStyle = this.color;
 	    ctx.fillRect(this.X, this.Y, this.width, this.height);
@@ -370,7 +449,8 @@ var Enemy = {
 
 	getHitted: function (damage)
 	{
-		hitText.create(this.X + this.width/2, this.Y + this.height/2, damage)
+		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage)
+		UIController.health.qty -= damage;
 	},
 
 	isColliding: function (a, b, c, d)
@@ -420,7 +500,7 @@ var ShootController = {
 			var bullet = this.createBullet(x, y, to.X, to.Y, weaponType)
 			bullets.push(bullet)
 		}
-		Enemy.checkBullets(bullets)
+		EnemyController.checkBullets(bullets)
 	},
 
 	createBullet: function (x, y, to_x, to_y, weaponType)
@@ -464,11 +544,11 @@ var ShootController = {
 		}
 	},
 
-	draw: function ()
+	draw: function (ctx)
 	{
 		for (var id in this.stack) {
 			if (this.stack.hasOwnProperty(id)) {
-	     	   this.loopDraw(id, this.stack[id]);
+	     	   this.loopDraw(ctx, id, this.stack[id]);
 			}
 		}
 	},
@@ -481,9 +561,9 @@ var ShootController = {
 	    }
 	},
 
-	loopDraw: function (id, shoot)
+	loopDraw: function (ctx, id, shoot)
 	{
-		//this.drawTrigometricThing(shoot);
+		//this.drawTrigometricThing(ctx, shoot);
     	var wt = shoot.weaponType;
     	color_percent = 1 - (Date.now() - shoot.time) / wt.lifetime
 
@@ -495,7 +575,7 @@ var ShootController = {
 
 	},
 
-	drawTrigometricThing: function (shoot)
+	drawTrigometricThing: function (ctx, shoot)
 	{
 		ctx.beginPath();
 		ctx.strokeStyle = '#ddd';
@@ -521,21 +601,21 @@ var MouseController = {
 	Y: 0,
 	click: false,
 
-	registerEvents: function() {
-		$(canvas).mousedown(function (e) {
+	init: function() {
+		$(Core.data.canvas).mousedown(function (e) {
 		    MouseController.click = true
 		});
 
-		$(canvas).mousemove(function (e) {
+		$(Core.data.canvas).mousemove(function (e) {
 		    MouseController.X = e.pageX - $(this).offset().left
 		    MouseController.Y = e.pageY - $(this).offset().top
 		});
 
-		$(canvas).mouseup(function (e) {
+		$(Core.data.canvas).mouseup(function (e) {
 		    MouseController.click = false
 		});
 	    
-	    $(canvas).mouseleave(function (e) {
+	    $(Core.data.canvas).mouseleave(function (e) {
 		    MouseController.click = false
 		});
 	}
