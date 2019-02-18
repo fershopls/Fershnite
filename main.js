@@ -127,7 +127,8 @@ function sound(src) {
 $(document).ready(function(){
 	resources.load([
 	    'assets/guns/shotgun.png',
-	    'assets/gui.png'
+	    'assets/gui.png',
+	    'assets/player.png',
 	]);
 	resources.onReady(function(){
 		Core.init(document.getElementById('canshoot'),
@@ -799,11 +800,22 @@ var PlayerController = {
     	}
     }
 
+	// url, pos, size, speed, frames, dir, once
+    this.sprite.update(dt);
+
+
 	this.hits(dt);
   },
+  sprite: new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0, 1, 2, 3, 2, 1]),
   draw: function(ctx) {
-    ctx.fillStyle = this.color;
-    ctx.fillRect(this.X, this.Y, this.width, this.height);
+  	ctx.save();
+    ctx.translate(this.X, this.Y);
+    this.sprite.render(ctx);
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(0,0,255,0.4)';
+    if (Core.debug)
+    	ctx.fillRect(this.X, this.Y, this.width, this.height);
   },
   hits: function(dt) {
 	if (this.X > Core.data.canvas.width - this.width)
