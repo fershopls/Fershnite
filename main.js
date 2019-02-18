@@ -4,7 +4,7 @@
 
 
 /*==========================================================================================
-=            CORE CONTROLLER                  ==============================================
+=            #CORE CONTROLLER                  =============================================
 ==========================================================================================*/
 
 var Core = {
@@ -104,7 +104,7 @@ var Core = {
 
 
 /*==========================================================================================
-=            SOUND CLASS                      ==============================================
+=            #SOUND CLASS                      =============================================
 ==========================================================================================*/
 
 function sound(src) {
@@ -115,6 +115,7 @@ function sound(src) {
   this.sound.style.display = "none";
   document.body.appendChild(this.sound);
   this.play = function(){
+  	this.sound.currentTime = 0
     this.sound.play();
   }
   this.stop = function(){
@@ -143,7 +144,7 @@ $(document).ready(function(){
 
 
 /*==========================================================================================
-=            AIM CONTROLLER                   ==============================================
+=            #AIM CONTROLLER                   =============================================
 ==========================================================================================*/
 
 
@@ -191,7 +192,7 @@ var AimController = {
 	drawBloomArea: function (ctx, weapon)
 	{
 		var angle = this.getMouseAngle();
-		var bloom = weapon.get('bloom') * Math.PI / 180
+		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
 		
 		// Bloom Points
@@ -227,7 +228,7 @@ var AimController = {
 
 
 /*==========================================================================================
-=            SHOOT CONTROLLER                 ==============================================
+=            #SHOOT CONTROLLER                 =============================================
 ==========================================================================================*/
 
 
@@ -238,7 +239,7 @@ var ShootController = {
 	{
 		var root_angle = AimController.getMouseAngle();
 		var perdigons = weapon.get('perdigons')
-		var bloom = weapon.get('bloom') * Math.PI / 180
+		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
 
 		var bullets = [];
@@ -334,7 +335,7 @@ var ShootController = {
 
 
 /*==========================================================================================
-=            UI CONTROLLER                    ==============================================
+=            #UI CONTROLLER                    =============================================
 ==========================================================================================*/
 
 
@@ -381,21 +382,37 @@ var UIController = {
 
 
 /*==========================================================================================
-=            WEAPON CLASS                     ==============================================
+=            #WEAPON CLASS                     =============================================
 ==========================================================================================*/
 
 
 function Weapon (settings) {
-	this.defaultSettings = {
-		perdigons: 1,
-		damage: 20,
-		rate: 500,
-		bloom: 40,
-		length: 300,
-		lostDamageRate: .75,
-		color: [0,0,0],
+	this.settings = {};
+
+	this.init = function ()
+	{
+		var defaultSettings = {
+			
+			damage: 20,
+			maxLostDamageRate: .75,
+			lostDamageRoundBy: 1,
+
+			color: [0,0,0],
+			length: 300,
+			perdigons: 1,
+			bloom: 40,
+			fireRate: 500,
+
+			lifetime: null,
+		}
+		defaultSettings = Object.assign(defaultSettings, {
+			lifetime: defaultSettings.fireRate
+		})
+
+		this.settings = Object.assign(defaultSettings, settings);
 	}
-	this.settings = Object.assign(this.defaultSettings, settings);
+	this.init();
+	
 
 	this.get = function(key) {
 		var value = null;
@@ -409,9 +426,15 @@ function Weapon (settings) {
     }
 
     this.getter = {
+    	// Lifetime equals to fireRate
     	lifetime: function(weapon, value)
     	{
-    		return weapon.get('rate')
+    		return weapon.get('fireRate')
+    	},
+    	// Return bloom in RADIANS
+    	bloom: function (weapon, value)
+    	{
+    		return value * Math.PI / 180
     	},
     }
 
@@ -431,7 +454,7 @@ function Weapon (settings) {
 
 
 /*==========================================================================================
-=            WEAPON CONTROLLER                ==============================================
+=            #WEAPON CONTROLLER                =============================================
 ==========================================================================================*/
 
 
@@ -440,7 +463,7 @@ var WeaponController = {
 		current: 'smg',
 		lastSwitchTime: 0,
 	  	lastWeapon: null,
-	  	minSwitchTime: 1000,
+	  	minSwitchTime: 700,
 	},
 	weapons: [],
 
@@ -504,29 +527,32 @@ var WeaponController = {
 			shotgun: {
 				perdigons: 10,
 				damage: 20,
-				rate: 975,
+				fireRate: 975,
 				bloom: 40,
 				length: 300,
 				color: [0,0,255],
-				lostDamageRate: .75,
+				maxLostDamageRate: .75,
+				lostDamageRoundBy: 4,
 			},
 			rifle: {
 				perdigons: 1,
 				damage: 30,
-				rate: 250,
+				fireRate: 250,
 				bloom: 5,
 				length: 600,
 				color: [255,0,255],
-				lostDamageRate: .50,
+				maxLostDamageRate: .50,
+				lostDamageRoundBy: 6,
 			},
 			smg: {
 				perdigons: 1,
 				damage: 16,
-				rate: 120,
+				fireRate: 120,
 				bloom: 10,
 				length: 400,
 				color: [255,0,0],
-				lostDamageRate: .7,
+				maxLostDamageRate: .7,
+				lostDamageRoundBy: 2,
 			},
 		};
 
@@ -545,7 +571,7 @@ var WeaponController = {
 
 
 /*==========================================================================================
-=            PLAYER CONTROLLER                ==============================================
+=            #PLAYER CONTROLLER                =============================================
 ==========================================================================================*/
 
 
@@ -618,12 +644,11 @@ var PlayerController = {
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
     {
-    	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().get('rate'))
+    	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().get('fireRate'))
     	{
 			this.shoot(dt)
 	    	this.lastFireTime = Date.now()
     		
-    		Core.sound.fire[WeaponController.getCurrentWeaponId()].sound.currentTime = 0
     		Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
     	}
     }
@@ -671,7 +696,7 @@ var PlayerController = {
 
 
 /*==========================================================================================
-=            HIT TEXT CONTROLLER              ==============================================
+=            #HIT TEXT CONTROLLE              ==============================================
 ==========================================================================================*/
 
 
@@ -732,7 +757,7 @@ var HitTextController = {
 
 
 /*==========================================================================================
-=            ENEMY CONTROLLER                 ==============================================
+=            #ENEMY CONTROLLER                 =============================================
 ==========================================================================================*/
 
 
@@ -794,9 +819,9 @@ var EnemyController = {
 		fixTotalLength = PlayerController.width/2 + this.width/2
 		totalLength = weapon.get('length')
 		lostDamage = gunDamage /totalLength * (hitLength-fixTotalLength)
-		lostDamage = lostDamage * weapon.get('lostDamageRate')
+		lostDamage = lostDamage * weapon.get('maxLostDamageRate')
 		damage = (gunDamage - lostDamage)
-		damage = Math.ceil(damage/5)*5; // round every 5
+		damage = Math.ceil(damage/weapon.get('lostDamageRoundBy'))*weapon.get('lostDamageRoundBy'); // round every 5
 		
 		if (damage > gunDamage)
 			damage = gunDamage
@@ -845,7 +870,7 @@ var EnemyController = {
 
 
 /*==========================================================================================
-=            MOUSE CONTROLLER                 ==============================================
+=            #MOUSE CONTROLLER                 =============================================
 ==========================================================================================*/
 
 
