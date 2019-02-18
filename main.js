@@ -475,21 +475,28 @@ var PlayerUIController = {
 
 	damage: function (totalDamage)
 	{
-		var damage = 0;
+		var damageToShield = 0
+		var damageToHealth = 0
 		if (totalDamage <= this.stats.shield.qty)
 		{
-			this.stats.shield.qty -= totalDamage
+			damageToShield = totalDamage
+			this.stats.shield.qty -= damageToShield
 		}
 		else
 		{
-			damage = this.stats.shield.qty
+			damageToShield = this.stats.shield.qty
+			damageToHealth = totalDamage - damageToShield
 			this.stats.shield.qty = 0
-			this.stats.health.qty -= totalDamage - damage
+			this.stats.health.qty -= damageToHealth
 		}
+
 		if (this.stats.health.qty < 0)
 			this.stats.health.qty = 0
 
-		return this.stats.health.qty + this.stats.shield.qty
+		return {
+			shield: damageToShield,
+			health: damageToHealth,
+		}
 	},
 
 	update: function (dt)
@@ -1047,8 +1054,12 @@ var EnemyController = {
 		if (damage > gunDamage)
 			damage = gunDamage
 
-		var totalHealth = PlayerUIController.damage(damage);
-		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage, (totalHealth>100?true:false))
+		var totalDamage = PlayerUIController.damage(damage);
+		if (totalDamage.shield > 0)
+			itHadShield = true
+		else
+			itHadShield = false
+		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage, itHadShield)
 	},
 
 	getLengthShoot: function()
