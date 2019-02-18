@@ -125,19 +125,25 @@ function sound(src) {
 }
 
 $(document).ready(function(){
-	Core.init(document.getElementById('canshoot'),
-		[
-			MouseController,
-			ShootController,
-			WeaponController,
-			
-			EnemyController,
-			PlayerController,
-			
+	resources.load([
+	    'assets/guns/shotgun.png',
+	    'assets/gui.png'
+	]);
+	resources.onReady(function(){
+		Core.init(document.getElementById('canshoot'),
+			[
+				MouseController,
+				ShootController,
+				WeaponController,
+				
+				EnemyController,
+				PlayerController,
+				
 
-			AimController,
-			PlayerUIController,
-		])
+				AimController,
+				PlayerUIController,
+			])
+	});
 });
 
 
@@ -456,6 +462,20 @@ var PlayerUIController = {
 		this.drawHealth(ctx);
 		this.drawShield(ctx);
 		HitTextController.draw(ctx);
+		this.drawGUI(ctx);
+	},
+
+	drawGUIIMG: null,
+	drawGUI: function(ctx)
+	{
+		ctx.drawImage(resources.get('assets/gui.png'), 0, 0);
+
+		this.drawShotgun(ctx);
+	},
+
+	drawShotgun: function(ctx)
+	{
+		ctx.drawImage(resources.get('assets/guns/shotgun.png'), 44, Core.data.canvas.height - 65);
 	},
 
 	drawHealth: function (ctx)
