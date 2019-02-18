@@ -145,7 +145,7 @@ var player = {
   	lastSwitchTime: 0,
   	lastWeapon: null,
   	minSwitchTime: 1000,
-  	weapon: 'shotgun',
+  	weapon: 'smg',
   },
   nextWeapon: function()
   {
@@ -245,6 +245,17 @@ var player = {
 		this.X = 0
 	if (this.Y < 0)
 		this.Y = 0
+
+	// Enemy hit
+	var rect1 = {x: this.X, y: this.Y, width: this.width, height: this.height}
+	var rect2 = {x: Enemy.X, y: Enemy.Y, width: Enemy.width, height: Enemy.height}
+
+	// if (rect1.x < rect2.x + rect2.width &&
+	//    rect1.x + rect1.width > rect2.x &&
+	//    rect1.y < rect2.y + rect2.height &&
+	//    rect1.height + rect1.y > rect2.y) {
+	//     console.log('collide')
+	// }
   },
   shoots: false,
   shoot: function() {
@@ -264,51 +275,58 @@ var hitText = {
 	stack: [],
 
 	lifetime: 1000,
+	heightPadding: 30,
+	widthPadding: 50,
 
+	angle: 0,
+	angleIncrement: 30 * Math.PI / 180,
+	angleMax: 3,
 	create: function (x, y, text)
 	{
-		while (typeof this.stack[x+'_'+y] != 'undefined')
-		{
-			y -= 20;
-		}
-		this.stack[x+'_'+y] = {
+		var angle = this.angleIncrement*-2 + this.angleIncrement*this.angle;
+		this.angle = this.angle <= this.angleMax?this.angle+1:0
+
+		this.stack.push({
 			X: x,
 			Y: y,
 			text: text,
 			created_at: Date.now(),
-		}
+			angle: angle
+		})
 	},
 
 	draw: function ()
 	{
 		for (var id in this.stack) {
 			if (this.stack.hasOwnProperty(id)) {
-	     	   this.loopDraw(id, this.stack[id]);
+				if (Date.now() - this.stack[id].created_at > this.lifetime)
+					delete this.stack[id]
+				else
+					this.loopDraw(id, this.stack[id])
 			}
 		}
 	},
-
+	
 	loopDraw: function (id, hitt)
 	{
-		if (Date.now() - hitt.created_at > this.lifetime)
-		{
-			delete this.stack[id];
-			return false;
-		}
-
 		var text = hitt.text;
+		ctx.save();
+		ctx.translate(hitt.X, hitt.Y);
+		ctx.rotate(hitt.angle);
 
 		ctx.font = "12px Verdana";
 		// Fill with gradient
 		ctx.fillStyle = '#29bdff';
-		ctx.fillText(text, hitt.X, hitt.Y);
+		ctx.fillText(text, 0, -45);
+
+		ctx.restore();
 	}
 
 }
 
 var Enemy = {
 	X: 320,
-	Y: 320,
+	Y: 120,
 	width: 50,
 	height: 50,
 	color: 'red',
@@ -350,7 +368,7 @@ var Enemy = {
 
 	getHitted: function (damage)
 	{
-		hitText.create(this.X + this.width/3, this.Y -15, damage)
+		hitText.create(this.X + this.width/2, this.Y + this.height/2, damage)
 	},
 
 	isColliding: function (a, b, c, d)
