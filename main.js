@@ -9,6 +9,7 @@
 
 var Core = {
 
+	debug: false,
 	modules: [],
 
 	addModule: function (Module)
@@ -194,7 +195,6 @@ var AimController = {
 
 	drawBloomArea: function (ctx, weapon)
 	{
-		var debug = false;
 		var angle = this.getMouseAngle();
 		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
@@ -232,7 +232,7 @@ var AimController = {
 				ctx.lineTo(ht.to.X, ht.to.Y);
 			}
 		}
-		if (debug)
+		if (Core.debug)
 			ctx.stroke()
 
 		// Do hit test lines
@@ -362,7 +362,8 @@ var ShootController = {
 
 	loopDraw: function (ctx, id, shoot)
 	{
-		//this.drawTrigometricThing(ctx, shoot);
+		if (Core.debug)
+			this.drawTrigometricThing(ctx, shoot);
     	var weapon = shoot.weapon;
     	color_percent = 1 - (Date.now() - shoot.time) / weapon.get('lifetime')
 
@@ -765,6 +766,17 @@ var PlayerController = {
     if (input.isDown("x"))
     {
     	WeaponController.nextWeapon()
+    }
+
+    // Toggle debug
+    if (input.isDown("z"))
+    {
+    	if (typeof Core.debugChange == 'undefined'
+    		|| Date.now() - Core.debugChange >= 350)
+    	{
+    		Core.debug = !Core.debug
+    		Core.debugChange = Date.now()
+    	}
     }
 
 	this.hits(dt);
