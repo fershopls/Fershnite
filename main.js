@@ -122,10 +122,11 @@ $(document).ready(function(){
 			EnemyController,
 			PlayerController,
 			
-			HitTextController,
 
 			UIController,
 			AimController,
+			
+			HitTextController,
 		])
 });
 
@@ -162,19 +163,19 @@ var AimController = {
 
 	draw: function(ctx)
 	{
-		var weaponType = WeaponController.getCurrentWeapon()
+		var weapon = WeaponController.getCurrentWeapon()
 	    
-	    var fillStyle = 'rgb('+weaponType.color[0]+','+weaponType.color[1]+','+weaponType.color[2]+')';
+	    var fillStyle = weapon.getRGBColor();
 	    
 	    this.drawCursor(ctx, fillStyle)
-	    this.drawBloomArea(ctx, weaponType)
+	    this.drawBloomArea(ctx, weapon)
 	},
 
-	drawBloomArea: function (ctx, weaponType)
+	drawBloomArea: function (ctx, weapon)
 	{
 		var angle = this.getMouseAngle();
-		var bloom = weaponType.bloom * Math.PI / 180
-		var length = weaponType.length
+		var bloom = weapon.get('bloom') * Math.PI / 180
+		var length = weapon.get('length')
 		
 		// Bloom Points
 		to1 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle - bloom/2)
@@ -210,12 +211,12 @@ var AimController = {
 var ShootController = {
 	stack: {},
 	lifetime: 800,
-	create: function(x, y, mouse_x, mouse_y, weaponType)
+	create: function(x, y, mouse_x, mouse_y, weapon)
 	{
 		var root_angle = AimController.getMouseAngle();
-		var perdigons = weaponType.perdigons
-		var bloom = weaponType.bloom * Math.PI / 180
-		var length = weaponType.length
+		var perdigons = weapon.get('perdigons')
+		var bloom = weapon.get('bloom') * Math.PI / 180
+		var length = weapon.get('length')
 
 		var bullets = [];
 		for (i = 1; i <= perdigons; i++)
@@ -225,19 +226,19 @@ var ShootController = {
 			angle += bloom * Math.random()
 			
 			to = AimController.getToByAngle(x, y, length, angle)
-			var bullet = this.createBullet(x, y, to.X, to.Y, weaponType)
+			var bullet = this.createBullet(x, y, to.X, to.Y, weapon)
 			bullets.push(bullet)
 		}
 		EnemyController.checkBullets(bullets)
 	},
 
-	createBullet: function (x, y, to_x, to_y, weaponType)
+	createBullet: function (x, y, to_x, to_y, weapon)
 	{
 		shoot = {
 			from: {X:x, Y:y},
 			to: {X:to_x, Y:to_y},
 			time: Date.now(),
-			weaponType: weaponType,
+			weapon: weapon,
 		}
 
 		this.stack[this.makeUniqueId()] = shoot
@@ -269,7 +270,7 @@ var ShootController = {
 
 	loopUpdate: function (id, shoot, dt)
 	{
-		if(shoot.weaponType.lifetime != 0 && shoot.time + shoot.weaponType.lifetime < Date.now())
+		if(shoot.weapon.get('lifetime') != 0 && shoot.time + shoot.weapon.get('lifetime') < Date.now())
 	    {
 			delete this.stack[id];
 	    }
@@ -278,11 +279,11 @@ var ShootController = {
 	loopDraw: function (ctx, id, shoot)
 	{
 		//this.drawTrigometricThing(ctx, shoot);
-    	var wt = shoot.weaponType;
-    	color_percent = 1 - (Date.now() - shoot.time) / wt.lifetime
+    	var weapon = shoot.weapon;
+    	color_percent = 1 - (Date.now() - shoot.time) / weapon.get('lifetime')
 
 		ctx.beginPath();
-		ctx.strokeStyle = 'rgba('+wt.color[0]+', '+wt.color[1]+', '+wt.color[2]+', ' + color_percent +')';
+		ctx.strokeStyle = weapon.getRGBAColor(color_percent);
 		ctx.moveTo(shoot.from.X, shoot.from.Y);
 		ctx.lineTo(shoot.to.X, shoot.to.Y);
 		ctx.stroke();
@@ -345,6 +346,51 @@ var UIController = {
 		ctx.fillStyle = gradient;
 		ctx.fillText(text, 10, 90);
 	},
+
+}
+
+
+function Weapon (settings) {
+	this.defaultSettings = {
+		perdigons: 1,
+		damage: 20,
+		rate: 500,
+		bloom: 40,
+		length: 300,
+		lostDamageRate: .75,
+		color: [0,0,0],
+	}
+	this.settings = Object.assign(this.defaultSettings, settings);
+
+	this.get = function(key) {
+		var value = null;
+        if (this.settings.hasOwnProperty(key))
+			value = this.settings[key]
+    	if (this.getter.hasOwnProperty(key))
+    		return this.getter[key](this, value)
+    	return value
+
+    	console.log('NO PROPERTY',key)
+    }
+
+    this.getter = {
+    	lifetime: function(weapon, value)
+    	{
+    		return weapon.get('rate')
+    	},
+    }
+
+    this.getRGBColor = function()
+    {
+    	var c = this.get('color')
+    	return 'rgb('+c[0]+','+c[1]+','+c[2]+')'
+    }
+
+    this.getRGBAColor = function(alpha)
+    {
+    	var c = this.get('color')
+    	return 'rgba('+c[0]+','+c[1]+','+c[2]+','+alpha+')'
+    }
 
 }
 
@@ -413,14 +459,13 @@ var WeaponController = {
 
 	loadWeapons: function()
 	{
-		return {
+		var weapons = {
 			shotgun: {
 				perdigons: 10,
 				damage: 20,
 				rate: 975,
 				bloom: 40,
 				length: 300,
-				lifetime: 975,
 				color: [0,0,255],
 				lostDamageRate: .75,
 			},
@@ -430,7 +475,6 @@ var WeaponController = {
 				rate: 250,
 				bloom: 5,
 				length: 600,
-				lifetime: 250,
 				color: [255,0,255],
 				lostDamageRate: .50,
 			},
@@ -440,11 +484,21 @@ var WeaponController = {
 				rate: 120,
 				bloom: 10,
 				length: 400,
-				lifetime: 100,
 				color: [255,0,0],
 				lostDamageRate: .7,
 			},
+		};
+
+		// Initialize Weapons
+		var weaponObjects = {};
+		for (id in weapons)
+		{
+			if (weapons.hasOwnProperty(id))
+			{
+				weaponObjects[id] = new Weapon(weapons[id])
+			}
 		}
+		return weaponObjects;
 	}
 }
 
@@ -467,10 +521,6 @@ var PlayerController = {
   		X: this.X + this.width/2,
   		Y: this.Y + this.height/2,
   	}
-  },
-  getFireRate: function()
-  {
-  	return weapons[this.fire.weapon].rate
   },
   update: function(dt){
   	if(input.isDown('DOWN') || input.isDown('s'))
@@ -521,7 +571,7 @@ var PlayerController = {
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
     {
-    	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().rate)
+    	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().get('rate'))
     	{
 			this.shoot(dt)
 	    	this.lastFireTime = Date.now()
@@ -657,7 +707,7 @@ var EnemyController = {
 				var hit = this.checkBullet(bullets[id])
 				if (hit)
 				{
-					damage += bullets[id].weaponType.damage
+					damage += bullets[id].weapon.get('damage')
 				}
 			}
 		}
@@ -680,13 +730,14 @@ var EnemyController = {
 	getHitted: function (gunDamage)
 	{
 		var hitLength = this.getLengthShoot()
-		var currentWeapon = WeaponController.getCurrentWeapon()
+		var weapon = WeaponController.getCurrentWeapon()
 
 		fixTotalLength = PlayerController.width/2 + this.width/2
-		totalLength = currentWeapon.length
+		totalLength = weapon.get('length')
 		lostDamage = gunDamage /totalLength * (hitLength-fixTotalLength)
-		lostDamage = lostDamage * currentWeapon.lostDamageRate
-		damage = Math.ceil(gunDamage - lostDamage)
+		lostDamage = lostDamage * weapon.get('lostDamageRate')
+		damage = (gunDamage - lostDamage)
+		damage = Math.ceil(damage/5)*5; // round every 5
 		
 		if (damage > gunDamage)
 			damage = gunDamage
