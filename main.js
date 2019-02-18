@@ -743,6 +743,7 @@ var WeaponController = {
 				damage: 30,
 				fireRate: 250,
 				bloom: 5,
+				bloomIncrementRate: 3,
 				length: 400,
 				color: [255,0,255],
 				maxLostDamageRate: .50,
@@ -1044,8 +1045,8 @@ var HitTextController = {
 var EnemyController = {
 	X: 320,
 	Y: 120,
-	width: 50,
-	height: 50,
+	width: 32,
+	height: 32,
 	color: 'red',
 	
 	center: function()
