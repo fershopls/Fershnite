@@ -117,6 +117,7 @@ $(document).ready(function(){
 		[
 			MouseController,
 			ShootController,
+			WeaponController,
 			
 			EnemyController,
 			PlayerController,
@@ -161,7 +162,7 @@ var AimController = {
 
 	draw: function(ctx)
 	{
-		var weaponType = weapons[PlayerController.fire.weapon]
+		var weaponType = WeaponController.getCurrentWeapon()
 	    
 	    var fillStyle = 'rgb('+weaponType.color[0]+','+weaponType.color[1]+','+weaponType.color[2]+')';
 	    
@@ -215,7 +216,6 @@ var ShootController = {
 		var perdigons = weaponType.perdigons
 		var bloom = weaponType.bloom * Math.PI / 180
 		var length = weaponType.length
-		console.log(length)
 
 		var bullets = [];
 		for (i = 1; i <= perdigons; i++)
@@ -333,7 +333,7 @@ var UIController = {
 
 	drawItemSolt: function(ctx)
 	{
-		var text = "=> " + PlayerController.fire.weapon;
+		var text = "=> " + WeaponController.getCurrentWeaponId();
 
 		ctx.font = "18px Verdana";
 		// Create gradient
@@ -348,34 +348,101 @@ var UIController = {
 
 }
 
-var weapons = {
-	shotgun: {
-		perdigons: 10,
-		damage: 20,
-		rate: 975,
-		bloom: 40,
-		length: 300,
-		lifetime: 975,
-		color: [0,0,255],
+var WeaponController = {
+	data: {
+		current: 'smg',
+		lastSwitchTime: 0,
+	  	lastWeapon: null,
+	  	minSwitchTime: 1000,
 	},
-	rifle: {
-		perdigons: 1,
-		damage: 30,
-		rate: 250,
-		bloom: 5,
-		length: 600,
-		lifetime: 250,
-		color: [255,0,255],
+	weapons: [],
+
+	init: function()
+	{
+		this.weapons = this.loadWeapons()
 	},
-	smg: {
-		perdigons: 1,
-		damage: 16,
-		rate: 120,
-		bloom: 10,
-		length: 400,
-		lifetime: 100,
-		color: [255,0,0],
+
+	getCurrentWeaponId: function ()
+	{
+		return this.data.current
 	},
+
+	getCurrentWeapon: function ()
+	{
+		var weapon = this.getWeapon(this.getCurrentWeaponId())
+		if (weapon)
+			return weapon
+		else
+			console.log('Cant get current') // GET FIRST WEAPON AND SET ASS CURRENT
+	},
+
+	getWeapon: function(id)
+	{
+		if (this.weapons.hasOwnProperty(id))
+			return this.weapons[id]
+		else
+			return console.log('Weapon',id,'not found in',this.weapons)
+	},
+
+	setWeapon: function(id)
+	{
+		if (this.weapons.hasOwnProperty(id))
+		{
+			this.data.lastWeapon = this.getCurrentWeaponId()
+			return this.data.current = id
+		}
+		else
+			return false
+	},
+
+	nextWeapon: function()
+	{
+		if (Date.now() - this.data.lastSwitchTime < this.data.minSwitchTime) return false;
+		var keys = Object.keys(this.weapons);
+		var index = keys.indexOf(this.getCurrentWeaponId())
+
+		next = index +1
+		if (typeof keys[next] == 'undefined')
+			next = 0
+
+
+		this.setWeapon(keys[next])
+		this.data.lastSwitchTime = Date.now()
+		Core.sound.weapon.play()
+	},
+
+	loadWeapons: function()
+	{
+		return {
+			shotgun: {
+				perdigons: 10,
+				damage: 20,
+				rate: 975,
+				bloom: 40,
+				length: 300,
+				lifetime: 975,
+				color: [0,0,255],
+			},
+			rifle: {
+				perdigons: 1,
+				damage: 30,
+				rate: 250,
+				bloom: 5,
+				length: 600,
+				lifetime: 250,
+				color: [255,0,255],
+			},
+			smg: {
+				perdigons: 1,
+				damage: 16,
+				rate: 120,
+				bloom: 10,
+				length: 400,
+				lifetime: 100,
+				color: [255,0,0],
+			},
+		}
+	}
 }
 
 var PlayerController = {
@@ -390,33 +457,13 @@ var PlayerController = {
   	max_speed: 160, // max px per sec
   	aceleration: 10, // speed to max_speed in ms 
   },
-  fire: {
-  	lastTime: 0,
-  	lastSwitchTime: 0,
-  	lastWeapon: null,
-  	minSwitchTime: 1000,
-  	weapon: 'smg',
-  },
+  lastFireTime: 0,
   center: function()
   {
   	return {
   		X: this.X + this.width/2,
   		Y: this.Y + this.height/2,
   	}
-  },
-  nextWeapon: function()
-  {
-  	if (Date.now() - this.fire.lastSwitchTime < this.fire.minSwitchTime) return false;
-	var keys = Object.keys(weapons);
-	var index = keys.indexOf(this.fire.weapon)
-
-	next = index +1
-	if (typeof keys[next] == 'undefined')
-		next = 0
-
-	
-	this.fire.weapon = keys[next]
-	this.fire.lastSwitchTime = Date.now()
   },
   getFireRate: function()
   {
@@ -471,20 +518,20 @@ var PlayerController = {
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
     {
-    	if (Date.now() - this.fire.lastTime >= this.getFireRate())
+    	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().rate)
     	{
-    		Core.sound.fire[this.fire.weapon].sound.currentTime = 0
-    		Core.sound.fire[this.fire.weapon].play();
 			this.shoot(dt)
-	    	this.fire.lastTime = Date.now()
+	    	this.lastFireTime = Date.now()
+    		
+    		Core.sound.fire[WeaponController.getCurrentWeaponId()].sound.currentTime = 0
+    		Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
     	}
     }
 
     // Change weapon
     if (input.isDown("x"))
     {
-    	this.nextWeapon();
-    	Core.sound.weapon.play()
+    	WeaponController.nextWeapon()
     }
 
 	this.hits(dt);
@@ -516,10 +563,9 @@ var PlayerController = {
   },
 
   shoot: function() {
-	selectedWeapon = weapons[this.fire.weapon];
 	ShootController.create(this.center().X, this.center().Y,
 							MouseController.X, MouseController.Y,
-							selectedWeapon)
+							WeaponController.getCurrentWeapon())
   },
 };
 
