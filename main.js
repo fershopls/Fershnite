@@ -488,6 +488,8 @@ var PlayerUIController = {
 		}
 		if (this.stats.health.qty < 0)
 			this.stats.health.qty = 0
+
+		return this.stats.health.qty + this.stats.shield.qty
 	},
 
 	update: function (dt)
@@ -914,7 +916,7 @@ var HitTextController = {
 	angle: 0,
 	angleIncrement: 30 * Math.PI / 180,
 	angleMax: 3,
-	create: function (x, y, text)
+	create: function (x, y, text, shield)
 	{
 		var angle = this.angleIncrement*-2 + this.angleIncrement*this.angle;
 		this.angle = (this.angle > this.angleMax)?0:this.angle+1
@@ -923,6 +925,7 @@ var HitTextController = {
 			X: x,
 			Y: y,
 			text: text,
+			shield: shield,
 			created_at: Date.now(),
 			angle: angle
 		})
@@ -948,11 +951,23 @@ var HitTextController = {
 		ctx.rotate(hitt.angle);
 
 
-		ctx.font = "12px Verdana";
-		// Fill with gradient
-		color_percent = 1 - (Date.now() - hitt.created_at) / this.lifetime
-		ctx.fillStyle = 'rgba(41, 189, 255, '+color_percent+')';
+		alpha = 1 - (Date.now() - hitt.created_at) / this.lifetime
+		
+		ctx.font = "13px Russo One";
+		
+		if (hitt.shield)
+		{
+			ctx.strokeStyle = 'rgba(15, 126, 175, '+alpha+')'
+			ctx.fillStyle = 'rgba(0, 255, 255, '+alpha+')'
+		} else {
+			ctx.strokeStyle = 'rgba(80, 80, 80, '+alpha+')'
+			ctx.fillStyle = 'rgba(255, 255, 225, '+alpha+')'
+		}
+		
+		ctx.lineWidth = 2;
+		ctx.strokeText(text, 0, -45);
 		ctx.fillText(text, 0, -45);
+
 
 		ctx.restore();
 	}
@@ -1032,8 +1047,8 @@ var EnemyController = {
 		if (damage > gunDamage)
 			damage = gunDamage
 
-		PlayerUIController.damage(damage);
-		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage)
+		var totalHealth = PlayerUIController.damage(damage);
+		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage, (totalHealth>100?true:false))
 	},
 
 	getLengthShoot: function()
