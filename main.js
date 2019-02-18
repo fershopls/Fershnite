@@ -173,23 +173,26 @@ var AimController = {
 		var bloom = weaponType.bloom * Math.PI / 180
 		var length = weaponType.length
 
-		to = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle)
-		this.lineTo(ctx, to);
+		ctx.beginPath()
+		
 		// min bloom
-		to = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle - bloom/2)
-		this.lineTo(ctx, to);
+		to1 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle - bloom/2)
+		// center aim
+		to2 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle)
 		// max bloom
-		to = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle + bloom/2)
-		this.lineTo(ctx, to);
-	},
-
-	lineTo: function (ctx, to)
-	{
-		ctx.beginPath();
-		ctx.strokeStyle = 'gray';
+		to3 = this.getToByAngle(this.getPivot().X, this.getPivot().Y, length, angle + bloom/2)
+		
 		ctx.moveTo(this.getPivot().X, this.getPivot().Y);
-		ctx.lineTo(to.X, to.Y);
-		ctx.stroke();
+		ctx.lineTo(to1.X, to1.Y);
+		ctx.lineTo(to2.X, to2.Y);
+		ctx.lineTo(to3.X, to3.Y);
+		ctx.lineTo(this.getPivot().X, this.getPivot().Y);
+
+		g = 200
+		if (MouseController.click)
+			g = 125
+		ctx.fillStyle = 'rgba('+g+','+g+','+g+',0.1)'
+		ctx.fill()
 	},
 }
 
