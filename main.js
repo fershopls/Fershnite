@@ -577,6 +577,7 @@ function Weapon (settings) {
 			length: 300,
 			perdigons: 1,
 			bloom: 40,
+			bloomIncrementRate: 1,
 			fireRate: 500,
 
 			lifetime: null,
@@ -589,19 +590,29 @@ function Weapon (settings) {
 	}
 	this.init();
 
-  	this.bloom = {
-	  	bloom_increase: 0, // current speed
-	  	aceleration: 10, // speed to max_speed in ms 
-	}
 
-	this.updateBloom = function()
+	this.updateBloom = function(weapon, bloom)
 	{
-		ms = this.movement.max_speed / this.movement.aceleration
-    	this.movement.y_speed += ms * dt
+ 	//  	this.bloom = {
+	//   	bloomIncrease: 0,
+	//   	bloomAceleration: 0,
+	//   	maxBloomIncrease: 1, // max px per sec
+	//   	bloomIncreaseRate: 500, // 0 bloomIncrease to maxBloomIncrease in ms 
+	// }
+	 //    if(incrementBloom)
+	 //    {
+	 //    	ms = this.bloom.maxBloomIncrease / this.bloom.bloomIncreaseRate
+	 //    	this.bloom.bloomAceleration += ms
+	 //    }
+
+		// this.bloom.bloomIncrease = this.bloom.bloomAceleration * Canvas.data.dt * 1000
+		// if (Math.abs(this.bloom.bloomIncrease) > this.bloom.maxBloomIncrease)
+		// 	this.bloom.bloomIncrease = this.bloom.maxBloomIncrease * this.bloom.bloomIncrease/Math.abs(this.bloom.x_speed)
+
+
 		var playerVelocityAverage = Math.abs(PlayerController.movement.x_speed)+Math.abs(PlayerController.movement.y_speed)
-    	var bloomIncrementRate = 1/10*playerVelocityAverage
-    	console.log(playerVelocityAverage)
-    	bloom = bloom + bloom * bloomIncrementRate
+	  	var bloomIncrementRate = 1/PlayerController.movement.max_speed*playerVelocityAverage
+	  	return bloom + bloom * bloomIncrementRate *weapon.get('bloomIncrementRate')
 	}
 	
 
@@ -625,6 +636,7 @@ function Weapon (settings) {
     	// Return bloom in RADIANS
     	bloom: function (weapon, bloom)
     	{
+    		bloom = weapon.updateBloom(weapon, bloom)
     		return bloom * Math.PI / 180
     	},
     }
@@ -716,13 +728,14 @@ var WeaponController = {
 	{
 		var weapons = {
 			shotgun: {
-				perdigons: 10,
-				damage: 20,
+				perdigons: 8,
+				damage: 8,
 				fireRate: 975,
 				bloom: 40,
+				bloomIncrementRate: 0.5,
 				length: 250,
 				color: [0,0,255],
-				maxLostDamageRate: 1.5,
+				maxLostDamageRate: 0.20,
 				lostDamageRoundBy: 4,
 			},
 			rifle: {
