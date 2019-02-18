@@ -274,7 +274,7 @@ var player = {
 var hitText = {
 	stack: [],
 
-	lifetime: 1000,
+	lifetime: 650,
 	heightPadding: 30,
 	widthPadding: 50,
 
@@ -284,7 +284,7 @@ var hitText = {
 	create: function (x, y, text)
 	{
 		var angle = this.angleIncrement*-2 + this.angleIncrement*this.angle;
-		this.angle = this.angle <= this.angleMax?this.angle+1:0
+		this.angle = (this.angle > this.angleMax)?0:this.angle+1
 
 		this.stack.push({
 			X: x,
@@ -300,7 +300,7 @@ var hitText = {
 		for (var id in this.stack) {
 			if (this.stack.hasOwnProperty(id)) {
 				if (Date.now() - this.stack[id].created_at > this.lifetime)
-					delete this.stack[id]
+					this.stack.splice(id, 1)
 				else
 					this.loopDraw(id, this.stack[id])
 			}
@@ -314,9 +314,11 @@ var hitText = {
 		ctx.translate(hitt.X, hitt.Y);
 		ctx.rotate(hitt.angle);
 
+
 		ctx.font = "12px Verdana";
 		// Fill with gradient
-		ctx.fillStyle = '#29bdff';
+		color_percent = 1 - (Date.now() - hitt.created_at) / this.lifetime
+		ctx.fillStyle = 'rgba(41, 189, 255, '+color_percent+')';
 		ctx.fillText(text, 0, -45);
 
 		ctx.restore();
