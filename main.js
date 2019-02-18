@@ -56,6 +56,7 @@ function update(dt) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ShootController.draw();
+  Enemy.draw();
   player.draw();
   UI.draw();
 }
@@ -254,6 +255,58 @@ var player = {
   },
 };
 
+var Enemy = {
+	X: 320,
+	Y: 320,
+	width: 50,
+	height: 50,
+	color: 'red',
+	
+	draw: function ()
+	{
+	    ctx.fillStyle = this.color;
+	    ctx.fillRect(this.X, this.Y, this.width, this.height);
+	},
+
+	checkShoot: function (shoot)
+	{
+		var vec = this.getRectVectors()
+		
+		var hit = this.isColliding(shoot.from, shoot.to, vec[0], vec[1])
+		hit = hit || this.isColliding(shoot.from, shoot.to, vec[1], vec[2])
+		hit = hit || this.isColliding(shoot.from, shoot.to, vec[2], vec[3])
+		hit = hit || this.isColliding(shoot.from, shoot.to, vec[3], vec[0])
+
+		console.log(1)
+
+	},
+
+	isColliding: function (a, b, c, d)
+	{
+		denominator = ((b.X - a.X) * (d.Y - c.Y)) - ((b.Y - a.Y) * (d.X - c.X));
+		numerator1 = ((a.Y - c.Y) * (d.X - c.X)) - ((a.X - c.X) * (d.Y - c.Y));
+		numerator2 = ((a.Y - c.Y) * (b.X - a.X)) - ((a.X - c.X) * (b.Y - a.Y));
+
+    	// Detect coincident lines (has a problem, read below)
+    	if (denominator == 0) return numerator1 == 0 && numerator2 == 0;
+
+    	r = numerator1 / denominator;
+    	s = numerator2 / denominator;
+
+    	return (r >= 0 && r <= 1) && (s >= 0 && s <= 1);
+	},
+
+	getRectVectors: function ()
+	{
+		return [
+			{X:this.X,Y:this.Y},
+			{X:this.X,Y:this.Y + this.height},
+			{X:this.X + this.width,Y:this.Y + this.height},
+			{X:this.X + this.width,Y:this.Y},
+		];
+	}
+}
+
 var ShootController = {
 	stack: {},
 	lifetime: 800,
@@ -285,6 +338,8 @@ var ShootController = {
 		}
 
 		this.stack[this.makeUniqueId()] = shoot
+
+		Enemy.checkShoot(shoot)
 	},
 
 	createAngle: function (x, y, to_x, to_y)
