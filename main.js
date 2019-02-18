@@ -486,6 +486,8 @@ var PlayerUIController = {
 			this.stats.shield.qty = 0
 			this.stats.health.qty -= totalDamage - damage
 		}
+		if (this.stats.health.qty < 0)
+			this.stats.health.qty = 0
 	},
 
 	update: function (dt)
