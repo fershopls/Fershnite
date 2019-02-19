@@ -148,6 +148,10 @@ io.on('connection', (socket) => {
 		if (PlayersController.get(id))
 			PlayersController.get(id).move(point)
 	});
+	
+	socket.on('shootClick', (id, x, y, mouse_x, mouse_y, weapon_id) => {
+		socket.broadcast.emit('shootDraw', id, x, y, mouse_x, mouse_y, weapon_id)
+	});
 });
 
 

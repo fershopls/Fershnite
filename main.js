@@ -48,13 +48,13 @@ var Core = {
 	{
 		return {
 			fire: {
-			'rifle': new sound("assets/shoot.mp3"),
-			'shotgun': new sound("assets/shotgun.mp3"),
-			'smg': new sound("assets/smg.mp3"),
-			'hands': new sound("assets/hands.mp3"),
-			'emptyGun': new sound("assets/emptyGun.mp3"),
+			'rifle': new sound("/assets/shoot.mp3"),
+			'shotgun': new sound("/assets/shotgun.mp3"),
+			'smg': new sound("/assets/smg.mp3"),
+			'hands': new sound("/assets/hands.mp3"),
+			'emptyGun': new sound("/assets/emptyGun.mp3"),
 			},
-			weapon: new sound("assets/switch_weapon.mp3"),
+			weapon: new sound("/assets/switch_weapon.mp3"),
 		}
 	},
 
@@ -307,9 +307,11 @@ var AimController = {
 		return {X:x + len * Math.cos(angle), Y: y + len * Math.sin(angle)}
 	},
 
-	getMouseAngle: function ()
+	getAngleBetween: function (mouse_x, mouse_y, pivot_x, pivot_y)
 	{
-		return this.getAngleFromTo(this.getPivot().X, this.getPivot().Y, MouseController.X, MouseController.Y)
+		pivot_x = pivot_x?pivot_x:this.getPivot().X
+		pivot_y = pivot_y?pivot_y:this.getPivot().Y
+		return this.getAngleFromTo(pivot_x, pivot_y, mouse_x, mouse_y)
 	},
 
 	draw: function(ctx)
@@ -333,7 +335,7 @@ var AimController = {
 	{
 		if (!weapon)
 			return false
-		var angle = this.getMouseAngle();
+		var angle = this.getAngleBetween(MouseController.X, MouseController.Y);
 		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
 		var pivot = this.getPivot();
@@ -424,9 +426,22 @@ var ShootController = {
 	stack: {},
 	lifetime: 800,
 	
-	create: function(x, y, mouse_x, mouse_y, weapon)
+	socketShootSend: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
 	{
-		var root_angle = AimController.getMouseAngle();
+		Socket.io.emit('shootClick', shooter_id, x, y, mouse_x, mouse_y, weapon_id)
+	},
+	
+	socketShootDraw: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
+	{
+		ShootController.create(shooter_id, x, y, mouse_x, mouse_y, WeaponController.getWeapon(weapon_id))
+	},
+
+	create: function(shooter_id, x, y, mouse_x, mouse_y, weapon)
+	{
+		// TODO Sounds if not exists not throw things
+		Core.sound.fire[weapon.id].play();
+		
+		var root_angle = AimController.getAngleBetween(mouse_x, mouse_y, x, y);
 		var perdigons = weapon.get('perdigons')
 		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
@@ -439,16 +454,17 @@ var ShootController = {
 			angle += bloom * Math.random()
 			
 			to = AimController.getToByAngle(x, y, length, angle)
-			var bullet = this.createBullet(x, y, to.X, to.Y, weapon)
+			var bullet = this.createBullet(shooter_id, x, y, to.X, to.Y, weapon)
 			bullets.push(bullet)
 		}
 		HitController.checkBulletsEnemiesHit(bullets)
 	},
 
-	createBullet: function (x, y, to_x, to_y, weapon)
+	createBullet: function (shooter_id, x, y, to_x, to_y, weapon)
 	{
 		shoot = {
 			id: this.makeUniqueId(),
+			shooter_id: shooter_id,
 			from: {X:x, Y:y},
 			to: {X:to_x, Y:to_y},
 			time: Date.now(),
@@ -464,7 +480,6 @@ var ShootController = {
 	{
 		if (this.stack.hasOwnProperty(id))
 		{
-			console.log('HIT',id)
 			this.stack[id].alive = false
 		}
 	},
@@ -739,6 +754,7 @@ function Weapon (settings) {
 	this.init = function ()
 	{
 		var defaultSettings = {
+			id: null,
 			
 			perdigons: 1,
 			damage: 20,
@@ -1318,11 +1334,16 @@ var WeaponController = {
 		var ammoLoaded = this.getCurrentWeapon().get('ammoLoaded')
 		if (ammoLoaded > 0 || ammoLoaded == -1)
 		{
-			ShootController.create(PlayerController.entity.center().X, PlayerController.entity.center().Y,
+			// Send shoot
+			ShootController.socketShootSend(PlayerController.entity.id,
+				PlayerController.entity.center().X, PlayerController.entity.center().Y,
+				MouseController.X, MouseController.Y,
+				WeaponController.getCurrentWeaponId())
+
+			ShootController.create(PlayerController.entity.id,
+				PlayerController.entity.center().X, PlayerController.entity.center().Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeapon())
-			// TODO Sounds if not exists not throw things
-			Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
 			if (ammoLoaded != -1)
 				this.getCurrentWeapon().set('ammoLoaded', ammoLoaded -1 )
 		} else {
@@ -1476,6 +1497,7 @@ var WeaponController = {
 			if (weapons.hasOwnProperty(id))
 			{
 				weaponObjects[id] = new Weapon(weapons[id])
+				weaponObjects[id].id = id
 			}
 		}
 		return weaponObjects;
@@ -1794,8 +1816,9 @@ var HitController = {
 		// Check if we hit something
 		if (enemyTarget.enemy)
 		{
+			// TODO this should not work but it works wtf
 			ShootController.killById(shoot.id)
-			enemyTarget.enemy.getHitted(enemyTarget.damage)
+			enemyTarget.enemy.getHitted(enemyTarget.damage, shoot.weapon.id)
 		}
 	},
 
@@ -1813,6 +1836,10 @@ var HitController = {
 
 			if (shoot.alive && this.checkLineShapePointsHit(shoot, shapePoints))
 			{
+				// Enemy cant hurt himself
+				if (shoot.shooter_id == enemy.entity.id)
+					continue
+
 				// BULLET HITTED ON ONE OR MULTIPLE ENEMIES
 				inflictedDamage += bulletDamage
 			}
@@ -1995,10 +2022,10 @@ function Enemy (entity)
 {
 	this.entity = entity
 
-	this.getHitted = function (gunDamage)
+	this.getHitted = function (gunDamage, weapon_id)
 	{
 		var hitLength = HitController.getShootLength(this)
-		var weapon = WeaponController.getCurrentWeapon()
+		var weapon = WeaponController.getWeapon(weapon_id)
 
 		fixTotalLength = PlayerController.entity.width/2 + this.entity.width/2
 		totalLength = weapon.get('length')
@@ -2188,5 +2215,6 @@ var Socket = {
 		this.io.on('playerLeft', function(id){
 			EnemyController.deleteById(id)
 		})
+		this.io.on('shootDraw', ShootController.socketShootDraw)
 	}
 }
