@@ -140,6 +140,10 @@ var PlayersController = {
 
 }
 
+setInterval(function(){
+	PlayersController.getPlayersPoints.call(PlayersController)
+}, 1000)
+
 io.on('connection', (socket) => {
 	var player = PlayersController.newPlayer(socket)
 	console.log('[PLAYERS][NEW]', player.id)
