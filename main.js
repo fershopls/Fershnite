@@ -386,7 +386,7 @@ var AimController = {
 		ctx.lineTo(this.getPivot().X, this.getPivot().Y);
 		if (Core.settings.autoShoot || Core.debug)
 		{
-			if (this.checkCollisionWithEnemy(hitTests))
+			if (HitController.checkLinesEnemiesHit(hitTests))
 			{
 				if (Core.settings.autoShoot)
 					WeaponController.shoot()
@@ -395,19 +395,6 @@ var AimController = {
 			}
 		}
 		ctx.fill()
-	},
-
-	checkCollisionWithEnemy: function(bullets)
-	{
-		var hit = false
-		for (id in bullets)
-		{
-			if (!bullets.hasOwnProperty(id))
-				continue;
-
-			if (HitController.isBulletColliding(bullets[id], EnemyController.entity.getPoints()))
-				return true
-		}
 	},
 
 	createHitTestLine: function(from, to)
@@ -436,6 +423,7 @@ var AimController = {
 var ShootController = {
 	stack: {},
 	lifetime: 800,
+	
 	create: function(x, y, mouse_x, mouse_y, weapon)
 	{
 		var root_angle = AimController.getMouseAngle();
@@ -460,14 +448,33 @@ var ShootController = {
 	createBullet: function (x, y, to_x, to_y, weapon)
 	{
 		shoot = {
+			id: this.makeUniqueId(),
 			from: {X:x, Y:y},
 			to: {X:to_x, Y:to_y},
 			time: Date.now(),
+			alive: true,
 			weapon: weapon,
 		}
 
-		this.stack[this.makeUniqueId()] = shoot
+		this.stack[shoot.id] = shoot
 		return shoot;
+	},
+
+	killById: function(id)
+	{
+		if (this.stack.hasOwnProperty(id))
+		{
+			console.log('HIT',id)
+			this.stack[id].alive = false
+		}
+	},
+
+	deleteById: function(id)
+	{
+		if (this.stack.hasOwnProperty(id))
+		{
+			delete this.stack[id]
+		}
 	},
 
 	makeUniqueId: function()
@@ -497,7 +504,7 @@ var ShootController = {
 	{
 		if(this.getBulletLifeTime() != 0 && shoot.time + this.getBulletLifeTime() < Date.now())
 	    {
-			delete this.stack[id];
+			this.deleteById(id)
 	    }
 	},
 
@@ -897,7 +904,7 @@ function Entity (settings)
 	    {
 	    	ctx.strokeStyle = this.color;
 	    	ctx.strokeRect(this.X, this.Y, this.width, this.height);
-	    	var text = this.id
+	    	var text = this.id?this.id:this.alias
 		    TextController.create({size:11, font:'Arial', X: this.center().X, Y: this.Y + this.height, text: text, align:'center'})
 	    	
 	    	// Debug velocity DEBUG TEXT JSON 
@@ -1492,11 +1499,13 @@ var PlayerController = {
   	aceleration: 500, // 0 speed to max_speed in ms 
   },
   
-  setId: function(id)
+  setId: function(id, point)
   {
   	this.entity.id = id
+  	this.entity.X = point.X
+  	this.entity.Y = point.Y
   	if (Core.io_debug)
-  		console.log('ID', id)
+  		console.log('ID', id, 'POINT', point)
   },
 
   loadOtherPlayers: function(players)
@@ -1707,17 +1716,6 @@ var HitController = {
 		this.checkItemsPlayerHit(dt)
 	},
 
-	checkBulletsEnemiesHit: function(bullets)
-	{
-		var enemies = EnemyController.getStack()
-		for (id in enemies)
-		{
-			if (!enemies.hasOwnProperty(id))
-				continue
-			this.checkBulletsEnemyHit(bullets, enemies[id])
-		}
-	},
-
 	checkItemsPlayerHit: function ()
 	{
 		var items = ItemController.getStack()
@@ -1734,28 +1732,96 @@ var HitController = {
 		}
 	},
 
-	checkBulletsEnemyHit : function (bullets, enemy)
+	checkLinesEnemiesHit: function(lines)
 	{
-		var damage = 0
-		console.log(enemy)
-		var points = enemy.entity.getPoints()
-		for (id in bullets)
+		var enemies = EnemyController.getStack()
+		var hit = false
+		for (id in enemies)
 		{
-			if (!bullets.hasOwnProperty(id))
-				continue;			
-			if (this.isBulletColliding(bullets[id], points))
+			if (!enemies.hasOwnProperty(id))
+				continue
+			hit = hit || this.checkLinesEnemyHit(lines, enemies[id])
+		}
+		return hit
+	},
+
+	checkLinesEnemyHit: function (lines, enemy)
+	{
+		var shapePoints = enemy.entity.getPoints()
+		
+		for (id in lines)
+		{
+			if (!lines.hasOwnProperty(id))
+				continue;
+			var line = lines[id]
+
+			if (this.checkLineShapePointsHit(line, shapePoints))
 			{
-				damage += bullets[id].weapon.get('damage')
+				return true
 			}
 		}
 		
-		if (damage) 
+		return false
+	},
+
+	checkBulletsEnemiesHit: function(bullets)
+	{
+		var enemies = EnemyController.getStack()
+		var enemyTarget = {
+			length: 10**9,
+			enemy: null,
+			damage: 0,
+		}
+		for (id in enemies)
 		{
-			enemy.getHitted(damage)
+			if (!enemies.hasOwnProperty(id))
+				continue
+			var enemy = enemies[id]
+			var posibleInflictedDamage = this.getInflictedDamageBulletsEnemyHit(bullets, enemy)
+
+			if (posibleInflictedDamage)
+			{
+				var shootLength = this.getShootLength(enemy)
+				// Shoot damage is only for shorter enemy
+				if (shootLength < enemyTarget.length)
+				{
+					enemyTarget.length = shootLength
+					enemyTarget.enemy = enemy
+					enemyTarget.damage = posibleInflictedDamage
+				}
+			}
+		}
+		// Check if we hit something
+		if (enemyTarget.enemy)
+		{
+			ShootController.killById(shoot.id)
+			enemyTarget.enemy.getHitted(enemyTarget.damage)
 		}
 	},
 
-	isBulletColliding: function (bullet, points)
+	getInflictedDamageBulletsEnemyHit: function (bullets, enemy)
+	{
+		var inflictedDamage = 0
+		var shapePoints = enemy.entity.getPoints()
+		
+		for (id in bullets)
+		{
+			if (!bullets.hasOwnProperty(id))
+				continue;
+			var shoot = bullets[id]
+			var bulletDamage = shoot.weapon.get('damage')
+
+			if (shoot.alive && this.checkLineShapePointsHit(shoot, shapePoints))
+			{
+				// BULLET HITTED ON ONE OR MULTIPLE ENEMIES
+				inflictedDamage += bulletDamage
+			}
+		}
+		
+		return inflictedDamage
+	},
+
+	checkLineShapePointsHit: function (bullet, points)
 	{
 		var hit = false
 		
@@ -1988,14 +2054,14 @@ var EnemyController = {
 
 	set: function (id, point, color)
 	{
-		if (Core.io_debug)
-			console.log('ENEMY', id, point)
+		// if (Core.io_debug)
+		// 	console.log('ENEMY', id, point)
 
 		if (this.stack.hasOwnProperty(id))
 		{
 			// Update POS
-			this.stack[id].X = point.X
-			this.stack[id].Y = point.Y
+			this.stack[id].entity.X = point.X
+			this.stack[id].entity.Y = point.Y
 		} else {
 			// Create POS
 			this.stack[id] = new Enemy(new Entity({
@@ -2107,8 +2173,8 @@ var Socket = {
 	{
 		this.io = io()
 
-		this.io.on('id', function(id){
-			PlayerController.setId(id)
+		this.io.on('id', function(id, point){
+			PlayerController.setId(id, point)
 		})
 		this.io.on('players', function(players){
 			PlayerController.loadOtherPlayers(players)

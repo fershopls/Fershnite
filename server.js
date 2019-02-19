@@ -78,15 +78,20 @@ var PlayersController = {
 	newPlayer: function(socket)
 	{
 		var id = socket.id
-		this.stack[id] = new Player({id: id, socket: socket})
+		this.stack[id] = new Player({
+			id: id,
+			socket: socket,
+			X: Math.round(Math.random() * 800),
+			Y: Math.round(Math.random() * 300),
+		})
 		// Send ID to player
-		socket.emit('id', id)
+		socket.emit('id', id, this.get(id).getPoint())
 		socket.emit('players', this.getPlayersPoints())
 		console.log('[PLAYERS][SEND] ALL', Object.keys(this.getStack()).length)
 		console.log('[PLAYERS][SEND] KEY', Object.keys(this.getStack()))
 		// Send player to other players
 		socket.broadcast.emit('enemy', id, this.get(id).getPoint());
-		return id
+		return this.stack[id]
 	},
 
 	getPlayersPoints: function()
@@ -136,8 +141,8 @@ var PlayersController = {
 }
 
 io.on('connection', (socket) => {
-	var id = PlayersController.newPlayer(socket)
-	console.log('[PLAYERS][NEW]', id)
+	var player = PlayersController.newPlayer(socket)
+	console.log('[PLAYERS][NEW]', player.id)
 	
 	socket.on('playerMove', (id, point) => {
 		if (PlayersController.get(id))
