@@ -1955,7 +1955,6 @@ var EnemyController = {
 	
 	_init: function()
 	{
-	  	var sprite = new SpriteSheet(['enemy.stand'])
 		this.entity = new Entity({
 			X: 320,
 			Y: 120,
@@ -1963,10 +1962,17 @@ var EnemyController = {
 			width: 32,
 			height: 32,
 			color: 'purple',
-			sprite: sprite
+			sprite: new SpriteSheet(['enemy.stand'])
 		})
 	},
 
+	deleteById: function(id)
+	{
+		if (this.stack.hasOwnProperty(id))
+		{
+			delete this.stack[id]
+		}
+	},
 
 	set: function (id, point, color)
 	{
@@ -1984,7 +1990,8 @@ var EnemyController = {
 				id: id,
 				X: point.X,
 				Y: point.Y,
-				color: color
+				color: color,
+				sprite: new SpriteSheet(['enemy.stand'])
 			})
 		}
 	},
@@ -2094,6 +2101,9 @@ var Socket = {
 		})
 		this.io.on('move', function(id, point){
 			console.log('MOVE', id, point)
+		})
+		this.io.on('playerLeft', function(id){
+			EnemyController.deleteById(id)
 		})
 	}
 }

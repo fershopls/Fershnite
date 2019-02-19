@@ -52,7 +52,9 @@ function Player (settings)
 		if (this.io().connected)
 			return true
 
-		this.dead
+		console.log('[PLAYER][DELETE]', this.id)
+		PlayersController.deleteById(this.id)
+		return false
 	}
 
   	this.getPoint = function ()
@@ -80,7 +82,8 @@ var PlayersController = {
 		// Send ID to player
 		socket.emit('id', id)
 		socket.emit('players', this.getPlayersPoints())
-		console.log('[PLAYERS][SEND] ALL',Object.keys(this.getStack()).length)
+		console.log('[PLAYERS][SEND] ALL', Object.keys(this.getStack()).length)
+		console.log('[PLAYERS][SEND] KEY', Object.keys(this.getStack()))
 		// Send player to other players
 		socket.broadcast.emit('enemy', id, this.get(id).getPoint());
 		return id
@@ -107,7 +110,10 @@ var PlayersController = {
 	deleteById: function(id)
 	{
 		if (this.stack.hasOwnProperty(id))
+		{
 			delete this.stack[id]
+			io.emit('playerLeft', id)
+		}
 	},
 
 	get: function (id)
