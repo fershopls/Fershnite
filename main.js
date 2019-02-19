@@ -232,7 +232,9 @@ var AimController = {
 	{
 		var weapon = WeaponController.getCurrentWeapon()
 	    
-	    var fillStyle = weapon.getRGBColor();
+	    var fillStyle = 'black';
+		if (weapon)
+	    	fillStyle = weapon.getRGBColor();
 	    
 	    this.drawCursor(ctx, fillStyle)
 	    this.drawBloomArea(ctx, weapon)
@@ -245,6 +247,8 @@ var AimController = {
 
 	drawBloomArea: function (ctx, weapon)
 	{
+		if (!weapon)
+			return false
 		var angle = this.getMouseAngle();
 		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
@@ -527,9 +531,14 @@ var PlayerUIController = {
 		this.drawShield(ctx);
 		HitTextController.draw(ctx);
 		this.drawGUI(ctx);
-  		this.drawWeaponSolt(ctx);
-  		this.drawLoadedAmmo(ctx)
-  		this.drawLeftAmmo(ctx)
+  		
+  		if (WeaponController.getCurrentWeapon())
+  		{
+  			this.drawWeaponSolt(ctx);
+	  		this.drawLoadedAmmo(ctx)
+	  		this.drawLeftAmmo(ctx)
+  		}
+
 	},
 
 	drawGUI: function(ctx)
@@ -737,14 +746,14 @@ var InventoryController = {
 
 	init: function ()
 	{
-		this.attachMany('weapons', {
-			'shotgun': 1,
-			'smg': 1
-		})
-		this.attachMany('ammo', {
-			'shotgun': 9,
-			'smg': 25,
-		})
+		// this.attachMany('weapons', {
+		// 	'shotgun': 1,
+		// 	'smg': 1
+		// })
+		// this.attachMany('ammo', {
+		// 	'shotgun': 9,
+		// 	'smg': 25,
+		// })
 	},
 
 	getStack: function (stack_id)
@@ -834,7 +843,7 @@ var InventoryController = {
 
 var WeaponController = {
 	data: {
-		current: 'hands',
+		current: null,
 		lastSwitchTime: 0,
 	  	lastWeapon: null,
 	  	minSwitchTime: 700,
@@ -861,12 +870,18 @@ var WeaponController = {
 
 	isShootAllowed: function()
 	{
+		if (!this.getCurrentWeapon())
+			return false
+
 		allow_fire = Date.now() - this.data.lastTimeFired >= this.getCurrentWeapon().get('fireRate')
 		return allow_fire && this.isTimeToReloadAllowed()
 	},
 
 	isTimeToReloadAllowed: function ()
 	{
+		if (!this.getCurrentWeapon())
+			return false
+		
 		return Date.now() - this.data.lastTimeReloaded >= this.getCurrentWeapon().get('ammoReloadTime')
 	},
 
@@ -945,15 +960,14 @@ var WeaponController = {
 		if (weapon)
 			return weapon
 		else
-			console.log('Cant get current') // GET FIRST WEAPON AND SET ASS CURRENT
+			return false
 	},
 
 	getWeapon: function(id)
 	{
 		if (this.weapons.hasOwnProperty(id))
 			return this.weapons[id]
-		else
-			return console.log('Weapon',id,'not found in',this.weapons)
+		return false
 	},
 
 	setWeapon: function(id)
