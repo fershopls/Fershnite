@@ -50,6 +50,7 @@ var Core = {
 			'rifle': new sound("assets/shoot.mp3"),
 			'shotgun': new sound("assets/shotgun.mp3"),
 			'smg': new sound("assets/smg.mp3"),
+			'hands': new sound("assets/hands.mp3"),
 			'emptyGun': new sound("assets/emptyGun.mp3"),
 			},
 			weapon: new sound("assets/switch_weapon.mp3"),
@@ -174,6 +175,8 @@ $(document).ready(function(){
 		Core.init(document.getElementById('canshoot'),
 			[
 				MouseController,
+				InventoryController,
+
 				ShootController,
 				WeaponController,
 				
@@ -441,7 +444,7 @@ var ShootController = {
 
 
 /*==========================================================================================
-=            #PLAYER UI CONTROLLER             =============================================
+=            #PLAYER #UI CONTROLLER            =============================================
 ==========================================================================================*/
 
 
@@ -475,6 +478,7 @@ var PlayerUIController = {
 	  		rifle: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
 	  		shotgun: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
 	  		smg: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
+	  		hands: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
 		})
 	},
 
@@ -538,6 +542,7 @@ var PlayerUIController = {
 		ctx.save()
 		ctx.translate(Core.data.canvas.width/2-40, Core.data.canvas.height -78)
 		text = WeaponController.getCurrentWeapon().get('ammoLoaded')
+		text = text == -1?'∞':text
 		ctx.font = '20px Russo One'
 		ctx.fillStyle = 'white'
 		ctx.fillText(text, 0, 0)
@@ -563,17 +568,27 @@ var PlayerUIController = {
 		ctx.restore()
 
 		// prev weapon
-		ctx.save()
-		ctx.translate(30, Core.data.canvas.height - 60)
-		ctx.scale(.5,.5);
-		this.sprite.get(WeaponController.getPrevWeaponId()).render(ctx)
-		ctx.restore()
+		var currentWeapon = WeaponController.getCurrentWeaponId()
+		var prevWeaponId = InventoryController.getPrevStackItem('weapons', currentWeapon)
+		var nextWeaponId = InventoryController.getNextStackItem('weapons', currentWeapon)
+		if (prevWeaponId)
+		{
+			ctx.save()
+			ctx.translate(30, Core.data.canvas.height - 60)
+			ctx.scale(.5,.5);
+			this.sprite.get(prevWeaponId).render(ctx)
+			ctx.restore()
+		}
 
-		ctx.save()
-		ctx.translate(220, Core.data.canvas.height - 60)
-		ctx.scale(.5,.5);
-		this.sprite.get(WeaponController.getNextWeaponId()).render(ctx)
-		ctx.restore()
+		// next weapon
+		if (nextWeaponId)
+		{
+			ctx.save()
+			ctx.translate(220, Core.data.canvas.height - 60)
+			ctx.scale(.5,.5);
+			this.sprite.get(nextWeaponId).render(ctx)
+			ctx.restore()
+		}
 	},
 
 	drawHealth: function (ctx)
@@ -698,13 +713,116 @@ function Weapon (settings) {
 
 
 /*==========================================================================================
+=            #ITEM CLASS                       =============================================
+==========================================================================================*/
+function Item ()
+{
+	this.defaultSettings = {
+		stack: {
+			stackable: true,
+			max: 10,
+		},
+		class: Weapon,
+	}
+}
+
+
+
+/*==========================================================================================
+=            #PLAYER #INVENTORY CONTROLLER     =============================================
+==========================================================================================*/
+
+var InventoryController = {
+	stack: [],
+
+	init: function ()
+	{
+		// this.attachMany('weapons', {
+		// 	'shotgun': 1,
+		// 	'smg': 1
+		// })
+	},
+
+	getStack: function (stack_id)
+	{
+		if (!this.stack.hasOwnProperty(stack_id))
+			this.stack[stack_id] = {}
+
+		return this.stack[stack_id]
+	},
+
+	attach: function (stack_id, item, qty)
+	{
+		qty = qty?qty:1
+
+		if (!this.getStack(stack_id).hasOwnProperty(item))
+			this.stack[stack_id][item] = qty
+		else
+			this.stack[stack_id][item] += qty
+
+	},
+
+	attachMany: function (stack_id, items)
+	{
+		for (id in items)
+		{
+			if (!items.hasOwnProperty(id))
+				continue;
+			
+			var qty = items[id]
+			if (!this.getStack(stack_id).hasOwnProperty(id))
+				this.stack[stack_id][id] = qty
+			else
+				this.stack[stack_id][id] += qty
+		}
+
+	},
+
+	has: function (stack_id, item)
+	{
+		if (!this.stack[stack_id].hasOwnProperty(item))
+			return false
+		return this.stack[stack_id][item]
+	},
+
+
+	getNextStackItem: function(stack_id, item_id)
+	{
+		var keys = Object.keys(this.getStack(stack_id));
+		var index = keys.indexOf(item_id)
+
+		next = index +1
+		if (typeof keys[next] == 'undefined')
+			next = 0
+
+		return keys[next]
+	},
+	
+	getPrevStackItem: function(stack_id, item_id)
+	{
+		var keys = Object.keys(this.getStack(stack_id));
+		var index = keys.indexOf(item_id)
+
+		next = index -1
+		if (typeof keys[next] == 'undefined')
+			next = keys.length -1
+
+		return keys[next]
+	},
+
+
+}
+
+
+
+/*==========================================================================================
 =            #WEAPON CONTROLLER                =============================================
 ==========================================================================================*/
 
 
 var WeaponController = {
 	data: {
-		current: 'smg',
+		current: 'hands',
 		lastSwitchTime: 0,
 	  	lastWeapon: null,
 	  	minSwitchTime: 700,
@@ -760,13 +878,15 @@ var WeaponController = {
 		this.data.lastTimeFired = Date.now()
 		
 		var ammoLoaded = this.getCurrentWeapon().get('ammoLoaded')
-		if (ammoLoaded > 0)
+		if (ammoLoaded > 0 || ammoLoaded == -1)
 		{
 			ShootController.create(PlayerController.center().X, PlayerController.center().Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeapon())
+			// TODO Sounds if not exists not throw things
 			Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
-			this.getCurrentWeapon().set('ammoLoaded', ammoLoaded -1 )
+			if (ammoLoaded != -1)
+				this.getCurrentWeapon().set('ammoLoaded', ammoLoaded -1 )
 		} else {
 			this.reload()
 		}
@@ -844,35 +964,10 @@ var WeaponController = {
 			return false
 	},
 
-	getNextWeaponId: function(id)
-	{
-		id = typeof id == 'undefined'?this.getCurrentWeaponId() : id
-		var keys = Object.keys(this.weapons);
-		var index = keys.indexOf(id)
-
-		next = index +1
-		if (typeof keys[next] == 'undefined')
-			next = 0
-
-		return keys[next]
-	},
-	
-	getPrevWeaponId: function(id)
-	{
-		id = typeof id == 'undefined'?this.getCurrentWeaponId() : id
-		var keys = Object.keys(this.weapons);
-		var index = keys.indexOf(id)
-
-		next = index -1
-		if (typeof keys[next] == 'undefined')
-			next = keys.length -1
-
-		return keys[next]
-	},
-
 	switchWeaponAllowed: function()
 	{
 		return Date.now() - this.data.lastSwitchTime >= this.data.minSwitchTime
+			&& InventoryController.getStack('weapons').length > 1
 	},
 
 	switchWeapon: function(next)
@@ -881,7 +976,7 @@ var WeaponController = {
 			return false;
 		this.data.lastSwitchTime = Date.now()
 		
-		var weapon = next? this.getNextWeaponId() : this.getPrevWeaponId()
+		var weapon = next? InventoryController.getNextStackItem('weapons', this.getCurrentWeaponId()) : InventoryController.getPrevStackItem('weapons', this.getCurrentWeaponId())
 		this.setWeapon(weapon)
 
 		Core.sound.weapon.play()
@@ -901,6 +996,17 @@ var WeaponController = {
 				color: [0,0,255],
 				maxLostDamageRate: 0.20,
 				lostDamageRoundBy: 4,
+			},
+			hands: {
+				ammoCharger: -1,
+				perdigons: 1,
+				damage: 10,
+				fireRate: 700,
+				bloom: 90,
+				bloomIncrementRate: 0.5,
+				length: 20,
+				color: [255,125,125],
+				maxLostDamageRate: 0,
 			},
 			rifle: {
 				ammoCharger: 8,
