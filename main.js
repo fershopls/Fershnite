@@ -47,6 +47,7 @@ var Core = {
 			'rifle': new sound("assets/shoot.mp3"),
 			'shotgun': new sound("assets/shotgun.mp3"),
 			'smg': new sound("assets/smg.mp3"),
+			'emptyGun': new sound("assets/emptyGun.mp3"),
 			},
 			weapon: new sound("assets/switch_weapon.mp3"),
 		}
@@ -302,7 +303,7 @@ var AimController = {
 		ctx.fillStyle = 'rgba(255,255,255,0.25)'
 		if (isCollidingWithEnemy)
 		{
-			PlayerController.shoot()
+			WeaponController.shoot()
 			if (Core.debug)
 				ctx.fillStyle = 'rgba(255,0,0,0.5)'
 		}
@@ -519,11 +520,35 @@ var PlayerUIController = {
 		HitTextController.draw(ctx);
 		this.drawGUI(ctx);
   		this.drawItemSolt(ctx);
+  		this.drawLoadedAmmo(ctx)
+  		this.drawLeftAmmo(ctx)
 	},
 
 	drawGUI: function(ctx)
 	{
 		ctx.drawImage(resources.get('assets/gui.png'), 0, 0);
+	},
+
+	drawLoadedAmmo: function(ctx)
+	{
+		ctx.save()
+		ctx.translate(Core.data.canvas.width/2-40, Core.data.canvas.height -78)
+		text = WeaponController.getCurrentWeapon().get('ammoLoaded')
+		ctx.font = '20px Russo One'
+		ctx.fillStyle = 'white'
+		ctx.fillText(text, 0, 0)
+		ctx.restore()
+	},
+
+	drawLeftAmmo: function(ctx)
+	{
+		ctx.save()
+		ctx.translate(Core.data.canvas.width/2+36, Core.data.canvas.height -78)
+		text = WeaponController.getAmmo(WeaponController.getCurrentWeaponId())
+		ctx.font = '20px Russo One'
+		ctx.fillStyle = 'white'
+		ctx.fillText(text, 0, 0)
+		ctx.restore()
 	},
 
 	drawItemSolt: function(ctx)
@@ -569,47 +594,34 @@ function Weapon (settings) {
 	{
 		var defaultSettings = {
 			
+			perdigons: 1,
 			damage: 20,
 			maxLostDamageRate: .75,
 			lostDamageRoundBy: 1,
 
-			color: [0,0,0],
 			length: 300,
-			perdigons: 1,
 			bloom: 40,
 			bloomIncrementRate: 1,
-			fireRate: 500,
+			color: [0,0,0],
+			
+			ammoReloadTime: 1000,
+			ammoLoaded: null,
+			ammoCharger: 1,
 
+			fireRate: 500,
 			lifetime: null,
 		}
-		defaultSettings = Object.assign(defaultSettings, {
-			lifetime: defaultSettings.fireRate
-		})
 
 		this.settings = Object.assign(defaultSettings, settings);
+		
+		this.settings.lifetime = (this.settings.lifetime)?this.settings.lifetime:this.settings.fireRate
+		this.settings.ammoLoaded =  (this.settings.ammoLoaded)?this.settings.ammoLoaded:this.settings.ammoCharger
 	}
 	this.init();
 
 
 	this.updateBloom = function(weapon, bloom)
 	{
- 	//  	this.bloom = {
-	//   	bloomIncrease: 0,
-	//   	bloomAceleration: 0,
-	//   	maxBloomIncrease: 1, // max px per sec
-	//   	bloomIncreaseRate: 500, // 0 bloomIncrease to maxBloomIncrease in ms 
-	// }
-	 //    if(incrementBloom)
-	 //    {
-	 //    	ms = this.bloom.maxBloomIncrease / this.bloom.bloomIncreaseRate
-	 //    	this.bloom.bloomAceleration += ms
-	 //    }
-
-		// this.bloom.bloomIncrease = this.bloom.bloomAceleration * Canvas.data.dt * 1000
-		// if (Math.abs(this.bloom.bloomIncrease) > this.bloom.maxBloomIncrease)
-		// 	this.bloom.bloomIncrease = this.bloom.maxBloomIncrease * this.bloom.bloomIncrease/Math.abs(this.bloom.x_speed)
-
-
 		var playerVelocityAverage = Math.abs(PlayerController.movement.x_speed)+Math.abs(PlayerController.movement.y_speed)
 	  	var bloomIncrementRate = 1/PlayerController.movement.max_speed*playerVelocityAverage
 	  	return bloom + bloom * bloomIncrementRate *weapon.get('bloomIncrementRate')
@@ -626,6 +638,18 @@ function Weapon (settings) {
 
     	console.log('NO PROPERTY',key)
     }
+	
+	this.set = function(key, value) {
+    	if (this.setter.hasOwnProperty(key))
+    		return this.setter[key](this, value)
+        if (this.settings.hasOwnProperty(key))
+			this.settings[key] = value
+    	return value
+
+    	console.log('NO PROPERTY',key)
+    }
+
+	this.setter = {}
 
     this.getter = {
     	// Lifetime equals to fireRate
@@ -667,8 +691,90 @@ var WeaponController = {
 		lastSwitchTime: 0,
 	  	lastWeapon: null,
 	  	minSwitchTime: 700,
+	  	lastTimeFired: 0,
+	  	lastTimeReloaded: 0,
 	},
 	weapons: [],
+	ammo: {
+		shotgun: 5,
+		smg: 30,
+		rifle: 30,
+	},
+
+	getAmmo: function(weapon_id)
+	{
+		if (this.ammo.hasOwnProperty(weapon_id))
+			return this.ammo[weapon_id]
+		else
+			return 0
+	},
+
+	setAmmo: function (weapon_id, ammo)
+	{
+		if (this.ammo.hasOwnProperty(weapon_id))
+			this.ammo[weapon_id] += ammo
+		else 
+			this.ammo[weapon_id] = ammo
+
+		return this.ammo[weapon_id]
+	},
+
+	isShootAllowed: function()
+	{
+		just_fired = Date.now() - this.data.lastTimeFired >= this.getCurrentWeapon().get('fireRate')
+		just_reload = Date.now() - this.data.lastTimeReloaded >= this.getCurrentWeapon().get('ammoReloadTime')
+		return just_fired && just_reload
+	},
+
+	shoot: function(dt)
+	{
+	  	if (!this.isShootAllowed())
+			return false
+		
+		this.data.lastTimeFired = Date.now()
+		
+		var ammoLoaded = this.getCurrentWeapon().get('ammoLoaded')
+		if (ammoLoaded > 0)
+		{
+			ShootController.create(PlayerController.center().X, PlayerController.center().Y,
+				MouseController.X, MouseController.Y,
+				WeaponController.getCurrentWeapon())
+			Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
+			this.getCurrentWeapon().set('ammoLoaded', ammoLoaded -1 )
+		} else {
+			this.reload()
+		}
+	},
+
+	reload: function()
+	{
+		var id = this.getCurrentWeaponId()
+		var weapon = this.getCurrentWeapon()
+
+		if (typeof this.ammo[id] == 'undefined')
+			this.ammo[id] = 0
+
+		if (this.ammo[id] > 0)
+		{
+			var max_ammo_allowed = weapon.get('ammoCharger')
+
+			var ammo_left = this.ammo[id] - max_ammo_allowed
+			
+			if (ammo_left > 0)
+			{
+				weapon.set('ammoLoaded', max_ammo_allowed)
+				this.ammo[id] -= max_ammo_allowed
+			} else {
+				weapon.set('ammoLoaded', this.ammo[id])
+				this.ammo[id] = 0
+			}
+
+			this.data.lastTimeReloaded = Date.now()
+			Core.sound.weapon.play()
+		} else {
+			Core.sound.fire.emptyGun.play();
+		}
+	},
 
 	init: function()
 	{
@@ -728,6 +834,7 @@ var WeaponController = {
 	{
 		var weapons = {
 			shotgun: {
+				ammoCharger: 3,
 				perdigons: 8,
 				damage: 8,
 				fireRate: 975,
@@ -739,6 +846,7 @@ var WeaponController = {
 				lostDamageRoundBy: 4,
 			},
 			rifle: {
+				ammoCharger: 8,
 				perdigons: 1,
 				damage: 30,
 				fireRate: 250,
@@ -750,6 +858,7 @@ var WeaponController = {
 				lostDamageRoundBy: 6,
 			},
 			smg: {
+				ammoCharger: 10,
 				perdigons: 1,
 				damage: 16,
 				fireRate: 120,
@@ -794,7 +903,6 @@ var PlayerController = {
   	max_speed: 10, // max px per sec
   	aceleration: 500, // 0 speed to max_speed in ms 
   },
-  lastFireTime: 0,
   center: function()
   {
   	return {
@@ -870,7 +978,7 @@ var PlayerController = {
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
     {
-    	this.shoot(dt)
+		WeaponController.shoot(dt);
     }
 
     // Change weapon
@@ -947,18 +1055,6 @@ var PlayerController = {
 	//    rect1.height + rect1.y > rect2.y) {
 	//     console.log('collide')
 	// }
-  },
-
-  shoot: function() {
-  	if (Date.now() - this.lastFireTime >= WeaponController.getCurrentWeapon().get('fireRate'))
-	{
-		ShootController.create(this.center().X, this.center().Y,
-			MouseController.X, MouseController.Y,
-			WeaponController.getCurrentWeapon())
-    	
-    	this.lastFireTime = Date.now()
-		Core.sound.fire[WeaponController.getCurrentWeaponId()].play();
-	}
   },
 };
 
