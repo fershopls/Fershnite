@@ -729,7 +729,7 @@ function Item ()
 
 
 /*==========================================================================================
-=            #PLAYER #INVENTORY CONTROLLER     =============================================
+=            #INVENTORY CONTROLLER             =============================================
 ==========================================================================================*/
 
 var InventoryController = {
@@ -737,10 +737,14 @@ var InventoryController = {
 
 	init: function ()
 	{
-		// this.attachMany('weapons', {
-		// 	'shotgun': 1,
-		// 	'smg': 1
-		// })
+		this.attachMany('weapons', {
+			'shotgun': 1,
+			'smg': 1
+		})
+		this.attachMany('ammo', {
+			'shotgun': 9,
+			'smg': 25,
+		})
 	},
 
 	getStack: function (stack_id)
@@ -749,6 +753,14 @@ var InventoryController = {
 			this.stack[stack_id] = {}
 
 		return this.stack[stack_id]
+	},
+
+	set: function (stack_id, item, qty)
+	{
+		qty = qty?qty:0
+
+		this.getStack(stack_id)
+		this.stack[stack_id][item] = qty
 	},
 
 	attach: function (stack_id, item, qty)
@@ -780,7 +792,7 @@ var InventoryController = {
 
 	has: function (stack_id, item)
 	{
-		if (!this.stack[stack_id].hasOwnProperty(item))
+		if (!this.getStack(stack_id).hasOwnProperty(item))
 			return false
 		return this.stack[stack_id][item]
 	},
@@ -830,18 +842,11 @@ var WeaponController = {
 	  	lastTimeReloaded: 0,
 	},
 	weapons: [],
-	ammo: {
-		shotgun: 5,
-		smg: 30,
-		rifle: 30,
-	},
 
 	getAmmo: function(weapon_id)
 	{
-		if (this.ammo.hasOwnProperty(weapon_id))
-			return this.ammo[weapon_id]
-		else
-			return 0
+		var ammo = InventoryController.has('ammo', weapon_id)
+		return ammo?ammo:0
 	},
 
 	setAmmo: function (weapon_id, ammo)
@@ -900,24 +905,22 @@ var WeaponController = {
 		var id = this.getCurrentWeaponId()
 		var weapon = this.getCurrentWeapon()
 
-		if (typeof this.ammo[id] == 'undefined')
-			this.ammo[id] = 0
-
-		if (this.ammo[id] > 0)
+		var ammo = InventoryController.has('ammo', id)
+		if (ammo)
 		{
 			var currentLoadedAmmo = weapon.get('ammoLoaded')
 			var chargerMaxAmmo = weapon.get('ammoCharger')
 			var missingAmmo = chargerMaxAmmo - currentLoadedAmmo
 			
-			var ammo_after_reload = this.ammo[id] - missingAmmo
+			var ammo_after_reload = ammo - missingAmmo
 			
 			if (ammo_after_reload > 0)
 			{
 				weapon.set('ammoLoaded', currentLoadedAmmo + missingAmmo)
-				this.ammo[id] -=  missingAmmo
+				InventoryController.attach('ammo', id, -missingAmmo)
 			} else {
-				weapon.set('ammoLoaded', this.ammo[id])
-				this.ammo[id] = 0
+				weapon.set('ammoLoaded', ammo)
+				InventoryController.set('ammo', id, 0)
 			}
 
 			Core.sound.weapon.play()
@@ -967,7 +970,7 @@ var WeaponController = {
 	switchWeaponAllowed: function()
 	{
 		return Date.now() - this.data.lastSwitchTime >= this.data.minSwitchTime
-			&& InventoryController.getStack('weapons').length > 1
+			&& Object.keys(InventoryController.getStack('weapons')).length > 1
 	},
 
 	switchWeapon: function(next)
