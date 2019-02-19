@@ -143,14 +143,35 @@ var Core = {
 /*==========================================================================================
 =            #SPRITE ClASS                     =============================================
 ==========================================================================================*/
-function SpriteSheet (stack)
+function SpriteSheet (sprites, prefix)
 {
-	this.stack = stack?stack:{}
+	this.stack = {}
+	this.prefix = prefix?prefix: ""
 	this.currentId = Object.keys(this.stack)[0];
+
+	this.init = function(sprites, prefix)
+	{
+		for (id in sprites)
+		{
+			if (!sprites.hasOwnProperty(id))
+				continue
+
+			var full_id = this.getPrefix() + sprites[id]
+			var sprite = SpriteController.get(full_id)
+			this.stack[sprites[id]] = sprite
+		}
+	}
+
+	this.getPrefix = function()
+	{
+		if (this.prefix)
+			return prefix + '.'
+		return ''
+	}
 
 	this.set = function(id)
 	{
-		if (stack.hasOwnProperty(id))
+		if (this.stack.hasOwnProperty(id))
 		{
 			this.currentId = id;
 		}
@@ -160,11 +181,77 @@ function SpriteSheet (stack)
 	{
 		if (id && this.stack.hasOwnProperty(id))
 			return this.stack[id]
-		if (this.stack.hasOwnProperty(this.currentId))
-			return this.stack[this.currentId]
+		if (this.stack.hasOwnProperty(this.getCurrentId()))
+			return this.stack[this.getCurrentId()]
+
+		return false
+	},
+
+	this.getCurrentId = function()
+	{
+		if (this.currentId)
+			return this.currentId
+		
+		if (Object.keys(this.stack).length > 0)
+			this.currentId = Object.keys(this.stack)[0]
+		
 		return false
 	}
+
+	this.init(sprites, this.prefix)
 }
+
+/*==========================================================================================
+=            #SPRITE CONTROLLER                =============================================
+==========================================================================================*/
+
+var SpriteController = {
+
+	stack: {},
+
+	init: function()
+	{
+		this.addMany({
+			'weapon.shotgun': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
+	  		'weapon.rifle': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
+	  		'weapon.smg': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
+	  		'weapon.hands': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
+
+		  	'player.stand': new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0]),
+		  	'player.walk': new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
+
+	  		'enemy.stand': new Sprite('assets/player.png', [32*0, 32*3], [32, 32], 6, [0]),
+
+	  		'ammo.box': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [4], 'vertical'),
+		})
+	},
+
+	addMany: function(sprites)
+	{
+		for (id in sprites)
+		{
+			if (!sprites.hasOwnProperty(id))
+				continue
+			this.add(id, sprites[id])
+		}
+	},
+
+	add: function(id, sprite)
+	{
+		this.stack[id] = sprite
+	},
+
+	get: function(id)
+	{
+		if (this.stack.hasOwnProperty(id))
+			return this.stack[id]
+		console.log("SPRITE 404",id)
+		return false
+	}
+
+}
+
+
 
 /*==========================================================================================
 =            #SOUND CLASS                      =============================================
@@ -199,6 +286,7 @@ $(document).ready(function(){
 		Core.init(document.getElementById('canshoot'),
 			[
 				MouseController,
+				SpriteController,
 				HitController,
 				InventoryController,
 
@@ -523,12 +611,12 @@ var UIController = {
 	init: function ()
 	{
 		// url, pos, size, speed, frames, dir, once
-		this.sprite = new SpriteSheet({
-	  		rifle: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
-	  		shotgun: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
-	  		smg: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
-	  		hands: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
-		})
+		this.sprite = new SpriteSheet([
+			'shotgun',
+			'rifle',
+			'smg',
+			'hands'
+		], 'weapon')
 	},
 
 	damage: function (totalDamage)
@@ -972,13 +1060,6 @@ var ItemController = {
 
 	init: function()
 	{
-		var sprites = {
-	  		rifle: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
-	  		shotgun: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
-	  		smg: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
-	  		hands: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
-	  		ammo: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [4], 'vertical'),
-		}
 		var items = ['shotgun', 'smg', 'rifle']
 
 		for (id in items)
@@ -997,7 +1078,7 @@ var ItemController = {
 						scaleX: 0.49,
 						scaleY: 0.49,
 						color: 'red',
-						sprite: new SpriteSheet({item: sprites[id]}),
+						sprite: new SpriteSheet([id], 'weapon'),
 					}))
 				)
 				
@@ -1010,7 +1091,7 @@ var ItemController = {
 						scaleY: 0.49,
 						drawX: -8,
 						color: 'red',
-						sprite: new SpriteSheet({item: sprites['ammo']}),
+						sprite: new SpriteSheet(['ammo.box']),
 					}), 999)
 				)
 		}
@@ -1423,10 +1504,7 @@ var PlayerController = {
   init: function ()
   {
   	// url, pos, size, speed, frames, dir, once
-  	var sprite = new SpriteSheet({
-	  	stand: new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0]),
-	  	walk: new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
-  	})
+  	var sprite = new SpriteSheet(['stand', 'walk'], 'player')
   	this.entity = new Entity({
 		X: 220,
 		Y: 270,
@@ -1807,10 +1885,7 @@ var EnemyController = {
 	
 	init: function()
 	{
-	  	var sprite = new SpriteSheet({
-		  	enemy: new Sprite('assets/player.png', [32*0, 32*3], [32, 32], 6, [0]),
-		  	//walk: new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
-	  	})
+	  	var sprite = new SpriteSheet(['enemy.stand'])
 		this.entity = new Entity({
 			X: 320,
 			Y: 120,
