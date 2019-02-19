@@ -457,7 +457,8 @@ var ShootController = {
 			var bullet = this.createBullet(shooter_id, x, y, to.X, to.Y, weapon)
 			bullets.push(bullet)
 		}
-		HitController.checkBulletsEnemiesHit(bullets)
+
+		HitController.checkBulletsHit(bullets)
 	},
 
 	createBullet: function (shooter_id, x, y, to_x, to_y, weapon)
@@ -474,6 +475,17 @@ var ShootController = {
 
 		this.stack[shoot.id] = shoot
 		return shoot;
+	},
+
+	killBullets: function (bullets)
+	{
+		for (id in bullets)
+		{
+			if (!bullets.hasOwnProperty(id))
+				continue
+
+			this.killById(id)
+		}
 	},
 
 	killById: function(id)
@@ -1786,6 +1798,37 @@ var HitController = {
 		return false
 	},
 
+	checkBulletsHit: function(bullets)
+	{
+		this.checkBulletsEnemiesHit(bullets)
+		this.checkBulletsPlayerHit(bullets)
+	},
+
+	checkBulletsPlayerHit: function (bullets)
+	{
+		var id = PlayerController.entity.id
+		var shapePoints = PlayerController.entity.getPoints()
+		var inflictedDamage = this.getInflictedDamageBulletsShapePointsHit(bullets, shapePoints, id)
+		
+		if (inflictedDamage)
+		{
+			var first_bullet = Object.keys(bullets)[0]
+			var shooter_id = bullets[first_bullet].shooter_id
+			var shootLength = this.getShootLength(EnemyController.get(shooter_id))
+			
+			ShootController.killBullets(bullets)
+			var player = PlayerController
+
+			// Take Damage
+			var totalDamage = UIController.damage(inflictedDamage);
+			if (totalDamage.shield > 0)
+				itHadShield = true
+			else
+				itHadShield = false
+			HitTextController.create(player.entity.center().X, player.entity.center().Y, inflictedDamage, true)
+		}
+	},
+
 	checkBulletsEnemiesHit: function(bullets)
 	{
 		var enemies = EnemyController.getStack()
@@ -1799,7 +1842,7 @@ var HitController = {
 			if (!enemies.hasOwnProperty(id))
 				continue
 			var enemy = enemies[id]
-			var posibleInflictedDamage = this.getInflictedDamageBulletsEnemyHit(bullets, enemy)
+			var posibleInflictedDamage = this.getInflictedDamageBulletsShapePointsHit(bullets, enemy.entity.getPoints(), enemy.entity.id)
 
 			if (posibleInflictedDamage)
 			{
@@ -1817,15 +1860,14 @@ var HitController = {
 		if (enemyTarget.enemy)
 		{
 			// TODO this should not work but it works wtf
-			ShootController.killById(shoot.id)
+			ShootController.killBullets(bullets)
 			enemyTarget.enemy.getHitted(enemyTarget.damage, shoot.weapon.id)
 		}
 	},
 
-	getInflictedDamageBulletsEnemyHit: function (bullets, enemy)
+	getInflictedDamageBulletsShapePointsHit: function (bullets, shapePoints, shapePoints_id)
 	{
 		var inflictedDamage = 0
-		var shapePoints = enemy.entity.getPoints()
 		
 		for (id in bullets)
 		{
@@ -1837,7 +1879,7 @@ var HitController = {
 			if (shoot.alive && this.checkLineShapePointsHit(shoot, shapePoints))
 			{
 				// Enemy cant hurt himself
-				if (shoot.shooter_id == enemy.entity.id)
+				if (shoot.shooter_id == shapePoints_id)
 					continue
 
 				// BULLET HITTED ON ONE OR MULTIPLE ENEMIES
@@ -2039,12 +2081,7 @@ function Enemy (entity)
 		if (damage > gunDamage)
 			damage = gunDamage
 
-		var totalDamage = UIController.damage(damage);
-		if (totalDamage.shield > 0)
-			itHadShield = true
-		else
-			itHadShield = false
-		HitTextController.create(this.entity.X + this.entity.width/2, this.entity.Y + this.entity.height/2, damage, itHadShield)
+		HitTextController.create(this.entity.center().X, this.entity.center().Y, damage, true)
 	}
 }
 
@@ -2069,6 +2106,13 @@ var EnemyController = {
 			color: 'purple',
 			sprite: new SpriteSheet(['enemy.stand'])
 		})
+	},
+
+	get: function(id)
+	{
+		if (this.stack.hasOwnProperty(id))
+			return this.stack[id]
+		return false
 	},
 
 	deleteById: function(id)
