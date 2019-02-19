@@ -870,6 +870,7 @@ function Entity (settings)
 			drawX: 0,
 			drawY: 0,
 			color: "#00A",
+			alias: null,
 			sprite: new SpriteSheet()
 		}
 
@@ -916,12 +917,14 @@ function Entity (settings)
   		} else {
 	  		ctx.fillStyle = this.color;
 		    ctx.fillRect(this.X, this.Y, this.width, this.height);
+		    TextController.create({X: this.center().X, Y: this.center().Y, text: this.alias, align:'center'})
   		}
 
 	    if (Core.debug)
 	    {
 	    	ctx.strokeStyle = this.color;
 	    	ctx.strokeRect(this.X, this.Y, this.width, this.height);
+		    TextController.create({size:11, font:'Arial', X: this.center().X, Y: this.center().Y, text: this.alias, align:'center'})
 	    	
 	    	// Debug velocity DEBUG TEXT JSON 
 	  //   	var text = JSON.stringify(this.movement)
@@ -955,6 +958,7 @@ function Item (stack_id, item_id, entity, qty)
 
 	this.grab = function()
 	{
+		console.log(this.stack_id, this.item_id, this.qty)
 		InventoryController.attach(this.stack_id, this.item_id, this.qty)
 	}
 
@@ -997,10 +1001,21 @@ function Item (stack_id, item_id, entity, qty)
 	{
 		var Y = this.entity.Y + this.entity.height
 		var X = this.entity.center().X
-		var text = this.item_id.toUpperCase()
+		var text = this.getItemAlias()
 		TextController.create({size:18, text: text, X: X, Y: Y+15, align: 'center'})
 		TextController.create({size: 12, text: 'PRESS E TO GRAB', X: X, Y: Y+35, align: 'center'})
 		this.grabbable = false
+	}
+
+	this.getItemAlias = function ()
+	{
+		var alias
+		
+		if (this.entity.alias)
+			alias = this.entity.alias
+		else alias = this.item_id
+
+		return alias.toUpperCase()
 	}
 }
 
@@ -1053,8 +1068,8 @@ var ItemController = {
 		var Y = Math.ceil(Y/round)*round;
 
 		return {
-			X: 100,
-			Y: 200,
+			X: X,
+			Y: Y,
 		}
 	},
 
@@ -1071,6 +1086,7 @@ var ItemController = {
 			this.add(new Item('weapons', id, new Entity ({
 						X: this.randomPos().X,
 						Y: this.randomPos().Y,
+						alias: id,
 						width:48,
 						height:32,
 						drawX: -8,
@@ -1082,9 +1098,10 @@ var ItemController = {
 					}))
 				)
 				
-				this.add(new Item('ammo', id+' ammo', new Entity ({
+				this.add(new Item('ammo', id, new Entity ({
 						X: this.randomPos().X,
 						Y: this.randomPos().Y,
+						alias: id +' ammo',
 						width:48,
 						height:32,
 						scaleX: 0.49,
@@ -1159,14 +1176,14 @@ var InventoryController = {
 
 	init: function ()
 	{
-		this.attachMany('weapons', {
-			'shotgun': 1,
-			'smg': 1
-		})
-		this.attachMany('ammo', {
-			'shotgun': 999,
-			'smg': 999,
-		})
+		// this.attachMany('weapons', {
+		// 	'shotgun': 1,
+		// 	'smg': 1
+		// })
+		// this.attachMany('ammo', {
+		// 	'shotgun': 999,
+		// 	'smg': 999,
+		// })
 	},
 
 	update: function(dt)
@@ -1508,6 +1525,7 @@ var PlayerController = {
   	this.entity = new Entity({
 		X: 220,
 		Y: 270,
+		alias: 'player',
 		width: 32,
 		height: 32,
 		color: '#00A',
@@ -1889,6 +1907,7 @@ var EnemyController = {
 		this.entity = new Entity({
 			X: 320,
 			Y: 120,
+			alias: 'enemy',
 			width: 32,
 			height: 32,
 			color: 'purple',
