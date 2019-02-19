@@ -181,6 +181,7 @@ $(document).ready(function(){
 				
 
 				AimController,
+				TextController,
 				UIController,
 			])
 	});
@@ -561,31 +562,22 @@ var UIController = {
 
 	drawLoadedAmmo: function(ctx)
 	{
-		ctx.save()
-		ctx.translate(Core.data.canvas.width/2 -15, Core.data.canvas.height -82)
+		var X = Core.data.canvas.width/2 -15
+		var Y = Core.data.canvas.height -82
 		
 		text = WeaponController.getCurrentWeapon().get('ammoLoaded')
-		text = text == -1?'∞':text
-		
-		ctx.textBaseline = 'middle'
-  		ctx.textAlign = 'right'
-		ctx.font = '20px Russo One'
-		ctx.fillStyle = 'white'
-		ctx.fillText(text, 0, 0)
-		ctx.restore()
+		if (text == -1)
+			text = '∞'
+		TextController.create({size:20, text: text, X: X, Y: Y, align: 'right'})
 	},
 
 	drawLeftAmmo: function(ctx)
 	{
-		ctx.save()
-		ctx.translate(Core.data.canvas.width/2+35, Core.data.canvas.height -82)
+		var X = Core.data.canvas.width/2+35
+		var Y = Core.data.canvas.height -82
+		
 		text = WeaponController.getAmmo(WeaponController.getCurrentWeaponId())
-		ctx.textBaseline = 'middle'
-  		ctx.textAlign = 'left'
-		ctx.font = '20px Russo One'
-		ctx.fillStyle = 'white'
-		ctx.fillText(text, 0, 0)
-		ctx.restore()
+		TextController.create({size:20, text: text, X: X, Y: Y, align: 'left'})
 	},
 
 	drawWeaponSolt: function(ctx)
@@ -872,14 +864,11 @@ function Item (stack_id, item_id, entity, qty)
 
 	this.drawGrabbable = function (ctx)
 	{
-		var Y = this.entity.Y + this.entity.height + 15
+		var Y = this.entity.Y + this.entity.height
 		var X = this.entity.center().X
 		var text = this.item_id.toUpperCase()
-		ctx.textBaseline = 'middle'
-  		ctx.textAlign = 'center'
-		ctx.fillStyle = 'white'
-		ctx.font = '18px Russo One'
-		ctx.fillText(text, X, Y)
+		TextController.create({size:18, text: text, X: X, Y: Y+15, align: 'center'})
+		TextController.create({size: 12, text: 'PRESS E TO GRAB', X: X, Y: Y+35, align: 'center'})
 		this.grabbable = false
 	}
 }
@@ -1583,6 +1572,63 @@ var HitController = {
     	return (r >= 0 && r <= 1) && (s >= 0 && s <= 1);
 	},
 }
+
+/*==========================================================================================
+=            #TEXT CONTROLLER                 ==============================================
+==========================================================================================*/
+
+var TextController = {
+	
+	getDefaultSettings: function(){
+		return {
+				X:0,
+				Y:25,
+				font: 'Russo One',
+				size: 12,
+				baseline:'middle',
+		  		align: 'left',
+				fill: 'white',
+				stroke: null,
+				lineWidth: 2,
+				text: 'hello',
+			}
+	},
+	stack: [],
+
+	create: function(settings)
+	{
+		this.stack.push(Object.assign(this.getDefaultSettings(), settings))
+	},
+
+	draw: function(ctx)
+	{
+		for (id in this.stack)
+		{
+			if (!this.stack.hasOwnProperty(id))
+				continue
+			this.drawLoop(ctx, this.stack[id])
+		}
+		this.stack = []
+	},
+
+	drawLoop: function(ctx, t)
+	{
+		ctx.save()
+		ctx.translate(t.X, t.Y)
+		ctx.font = t.size+'px '+t.font
+		ctx.textBaseline = t.baseline
+		ctx.textAlign = t.align
+		ctx.fillStyle = t.fill
+		ctx.strokeStyle = t.stroke
+		ctx.lineWidth = t.lineWidth
+		if (t.fill)
+			ctx.fillText(t.text, 0, 0)
+		if (t.stroke)
+			ctx.strokeText(t.text, 0, 0)
+		ctx.restore()
+	}
+}
+
 
 /*==========================================================================================
 =            #HIT TEXT CONTROLLER             ==============================================
