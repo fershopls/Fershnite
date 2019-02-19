@@ -11,6 +11,9 @@ var Core = {
 
 	debug: false,
 	modules: [],
+	settings: {
+		autoShoot: false,
+	},
 
 	addModule: function (Module)
 	{
@@ -303,7 +306,8 @@ var AimController = {
 		ctx.fillStyle = 'rgba(255,255,255,0.25)'
 		if (isCollidingWithEnemy)
 		{
-			WeaponController.shoot()
+			if (Core.settings.autoShoot)
+				WeaponController.shoot()
 			if (Core.debug)
 				ctx.fillStyle = 'rgba(255,0,0,0.5)'
 		}
@@ -734,9 +738,18 @@ var WeaponController = {
 
 	isShootAllowed: function()
 	{
-		just_fired = Date.now() - this.data.lastTimeFired >= this.getCurrentWeapon().get('fireRate')
-		just_reload = Date.now() - this.data.lastTimeReloaded >= this.getCurrentWeapon().get('ammoReloadTime')
-		return just_fired && just_reload
+		allow_fire = Date.now() - this.data.lastTimeFired >= this.getCurrentWeapon().get('fireRate')
+		return allow_fire && this.isTimeToReloadAllowed()
+	},
+
+	isTimeToReloadAllowed: function ()
+	{
+		return Date.now() - this.data.lastTimeReloaded >= this.getCurrentWeapon().get('ammoReloadTime')
+	},
+
+	isReloadAllowed: function()
+	{
+		return this.isTimeToReloadAllowed() && this.getCurrentWeapon().get('ammoLoaded') < this.getCurrentWeapon().get('ammoCharger')
 	},
 
 	shoot: function(dt)
@@ -761,6 +774,9 @@ var WeaponController = {
 
 	reload: function()
 	{
+		if (!this.isReloadAllowed())
+			return false
+		this.data.lastTimeReloaded = Date.now()
 		var id = this.getCurrentWeaponId()
 		var weapon = this.getCurrentWeapon()
 
@@ -769,20 +785,21 @@ var WeaponController = {
 
 		if (this.ammo[id] > 0)
 		{
-			var max_ammo_allowed = weapon.get('ammoCharger')
-
-			var ammo_left = this.ammo[id] - max_ammo_allowed
+			var currentLoadedAmmo = weapon.get('ammoLoaded')
+			var chargerMaxAmmo = weapon.get('ammoCharger')
+			var missingAmmo = chargerMaxAmmo - currentLoadedAmmo
 			
-			if (ammo_left > 0)
+			var ammo_after_reload = this.ammo[id] - missingAmmo
+			
+			if (ammo_after_reload > 0)
 			{
-				weapon.set('ammoLoaded', max_ammo_allowed)
-				this.ammo[id] -= max_ammo_allowed
+				weapon.set('ammoLoaded', currentLoadedAmmo + missingAmmo)
+				this.ammo[id] -=  missingAmmo
 			} else {
 				weapon.set('ammoLoaded', this.ammo[id])
 				this.ammo[id] = 0
 			}
 
-			this.data.lastTimeReloaded = Date.now()
 			Core.sound.weapon.play()
 		} else {
 			Core.sound.fire.emptyGun.play();
@@ -1029,6 +1046,11 @@ var PlayerController = {
     if (input.isDown("z"))
     {
     	WeaponController.switchWeapon(false)
+    }
+    // Reload weapon
+    if (input.isDown("r"))
+    {
+    	WeaponController.reload()
     }
 
     // Toggle debug
