@@ -95,6 +95,11 @@ var Core = {
 	draw: function (ctx, canvas)
 	{
 		ctx.clearRect(0, 0, Core.data.canvas.width, Core.data.canvas.height);
+		
+		ctx.fillStyle = '#a2bf4e'
+		ctx.fillRect(0, 0, Core.data.canvas.width, Core.data.canvas.height);
+		this.drawGrid(ctx)
+		
 		for (var id in this.modules) {
 			if (this.modules.hasOwnProperty(id)) {
 				if (this.modules[id].hasOwnProperty('draw'))
@@ -103,6 +108,32 @@ var Core = {
 				}
 			}
 		}
+	},
+
+	drawGrid: function(ctx)
+	{
+		ctx.save()
+		ctx.translate(-10,-15)
+		ctx.strokeStyle = '#b8d763'
+		var factor = 48
+		factor = Math.sqrt(factor**2 + factor**2)
+		for (i = -10; i < 20; i++)
+		{
+			var X = i*factor
+			ctx.moveTo(X, 0)
+			var to = AimController.getToByAngle(X,0, this.data.canvas.width, 35*Math.PI/180)
+			ctx.lineTo(to.X, to.Y)
+			ctx.stroke()
+		}
+		for (i = 0; i < 30; i++)
+		{
+			var X = i*factor
+			ctx.moveTo(X, 0)
+			var to = AimController.getToByAngle(X,0, this.data.canvas.width, 145*Math.PI/180)
+			ctx.lineTo(to.X, to.Y)
+			ctx.stroke()
+		}
+		ctx.restore()
 	},
 
 
