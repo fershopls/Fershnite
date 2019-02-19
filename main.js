@@ -114,15 +114,7 @@ var Core = {
 ==========================================================================================*/
 function SpriteSheet (stack)
 {
-	for (id in stack)
-	{
-		if (stack.hasOwnProperty(id))
-		{
-			// 
-		}
-	}
-
-	this.stack = stack
+	this.stack = stack?stack:{}
 	this.currentId = null;
 
 	this.set = function(id)
@@ -135,9 +127,11 @@ function SpriteSheet (stack)
 
 	this.get = function (id)
 	{
-		if (id && stack.hasOwnProperty(id))
+		if (id && this.stack.hasOwnProperty(id))
 			return this.stack[id]
-		return this.stack[this.currentId]
+		if (this.stack.hasOwnProperty(this.currentId))
+			return this.stack[this.currentId]
+		return false
 	}
 }
 
@@ -166,7 +160,6 @@ function sound(src) {
 ==========================================================================================*/
 $(document).ready(function(){
 	resources.load([
-	    'assets/guns/shotgun.png',
 	    'assets/gui.png',
 	    'assets/player.png',
 	    'assets/gun.png',
@@ -180,12 +173,14 @@ $(document).ready(function(){
 				ShootController,
 				WeaponController,
 				
+				ItemController,
+
 				EnemyController,
 				PlayerController,
 				
 
 				AimController,
-				PlayerUIController,
+				UIController,
 			])
 	});
 });
@@ -448,11 +443,11 @@ var ShootController = {
 
 
 /*==========================================================================================
-=            #PLAYER #UI CONTROLLER            =============================================
+=            #UI CONTROLLER                    =============================================
 ==========================================================================================*/
 
 
-var PlayerUIController = {
+var UIController = {
 	stats: {
 		dead: false,
 		health: {
@@ -722,19 +717,151 @@ function Weapon (settings) {
 
 
 /*==========================================================================================
+=            #ENTITY CLASS                     =============================================
+==========================================================================================*/
+function Entity (settings)
+{
+	this.settings = {};
+    	
+	this.init = function ()
+	{
+		var defaultSettings = {
+			X: 220,
+			Y: 270,
+			width: 32,
+			height: 32,
+			color: "#00A",
+			sprite: new SpriteSheet()
+		}
+
+		this.settings = Object.assign(defaultSettings, settings);
+
+		for (id in this.settings)
+		{
+			if (!this.settings.hasOwnProperty(id))
+				continue;
+
+			this[id] = this.settings[id]
+		}
+	}
+	this.init();
+
+	
+	this.center = function()
+	{
+	  	return {
+	  		X: this.X + this.width/2,
+	  		Y: this.Y + this.height/2,
+	  	}
+  	}
+
+  	this.draw = function (ctx)
+  	{
+  		if (this.sprite.get())
+  		{
+	  		ctx.save();
+		    ctx.translate(this.X, this.Y);
+		    this.sprite.get().render(ctx);
+		    ctx.restore();
+  		} else {
+	  		ctx.fillStyle = this.color;
+		    ctx.fillRect(this.X, this.Y, this.width, this.height);
+  		}
+
+	    if (Core.debug)
+	    {
+	    	ctx.strokeStyle = this.color;
+	    	ctx.strokeRect(this.X, this.Y, this.width, this.height);
+	    	
+	    	// Debug velocity DEBUG TEXT JSON 
+	  //   	var text = JSON.stringify(this.movement)
+	  //   	text = text.split(',').join("\n")
+			// ctx.save();
+			// ctx.translate(10, 10);
+			// ctx.font = "13px Arial";
+			// ctx.fillStyle = 'white'
+
+			// var lineheight = 15;
+			// var lines = text.split('\n');
+			// for (var i = 0; i<lines.length; i++)
+			//     ctx.fillText(lines[i], 0, 0 + (i*lineheight) );
+			// ctx.restore();
+	    }
+  	}
+}
+
+
+/*==========================================================================================
 =            #ITEM CLASS                       =============================================
 ==========================================================================================*/
-function Item ()
+function Item (stack_id, item_id)
 {
-	this.defaultSettings = {
-		stack: {
-			stackable: true,
-			max: 10,
-		},
-		class: Weapon,
+	this.stack_id = stack_id
+	this.item_id = item_id
+
+	this.grab = function()
+	{
+		InventoryController.attach(this.stack_id, this.item_id)
+	}
+
+	this.update = function(dt)
+	{
+		
+	}
+
+	this.draw = function(ctx)
+	{
+		ctx.save()
+		ctx.translate(Core.data.canvas.width - 100, Core.data.canvas.height - 200)
+		ctx.scale(0.5, 0.5)
+		ctx.fillStyle = 'lightblue'
+		ctx.fillRect(0,0,128,64)
+		UIController.sprite.get(this.item_id).render(ctx)
+		ctx.restore()
 	}
 }
 
+
+
+/*==========================================================================================
+=            #ITEM      CONTROLLER             =============================================
+==========================================================================================*/
+
+var ItemController = {
+	stack: [],
+
+	init: function()
+	{
+		this.add(new Item('weapons', 'shotgun'))
+	},
+
+	add: function(item)
+	{
+		this.stack.push(item)
+	},
+
+	update: function(dt)
+	{
+		for (id in this.stack)
+		{
+			if (!this.stack.hasOwnProperty(id))
+				continue;
+
+			this.stack[id].update(dt)
+		}
+	},
+
+	draw: function(ctx)
+	{
+		for (id in this.stack)
+		{
+			if (!this.stack.hasOwnProperty(id))
+				continue;
+
+			this.stack[id].draw(ctx)
+		}
+	},
+}
 
 
 /*==========================================================================================
@@ -881,7 +1008,7 @@ var WeaponController = {
 	{
 		if (!this.getCurrentWeapon())
 			return false
-		
+
 		return Date.now() - this.data.lastTimeReloaded >= this.getCurrentWeapon().get('ammoReloadTime')
 	},
 
@@ -1070,11 +1197,7 @@ var WeaponController = {
 
 
 var PlayerController = {
-  color: "#00A",
-  X: 220,
-  Y: 270,
-  width: 32,
-  height: 32,
+  entity: null,
   movement: {
   	x_speed: 0, // current speed
   	y_speed: 0,
@@ -1083,22 +1206,23 @@ var PlayerController = {
   	max_speed: 10, // max px per sec
   	aceleration: 500, // 0 speed to max_speed in ms 
   },
-  center: function()
-  {
-  	return {
-  		X: this.X + this.width/2,
-  		Y: this.Y + this.height/2,
-  	}
-  },
-  sprite: [],
+  
   init: function ()
   {
   	// url, pos, size, speed, frames, dir, once
-  	this.sprite = new SpriteSheet({
+  	var sprite = new SpriteSheet({
 	  	stand: new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0]),
 	  	walk: new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
   	})
-  	this.sprite.set('stand')
+  	this.entity = new Entity({
+		X: 220,
+		Y: 270,
+		width: 32,
+		height: 32,
+		color: '#00A',
+		sprite: sprite
+  	})
+	this.entity.sprite.set('stand')
   },
 
   update: function(dt){
@@ -1125,7 +1249,7 @@ var PlayerController = {
     if (Math.abs(this.movement.y_speed) > this.movement.max_speed)
     	this.movement.y_speed = this.movement.max_speed * this.movement.y_speed/Math.abs(this.movement.y_speed)
 
-    this.Y += this.movement.y_speed
+    this.entity.Y += this.movement.y_speed
 
 
 
@@ -1153,7 +1277,7 @@ var PlayerController = {
 	if (Math.abs(this.movement.x_speed) > this.movement.max_speed)
     	this.movement.x_speed = this.movement.max_speed * this.movement.x_speed/Math.abs(this.movement.x_speed)
     
-    this.X += this.movement.x_speed
+    this.entity.X += this.movement.x_speed
 
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
@@ -1188,54 +1312,31 @@ var PlayerController = {
     }
 
     if (this.movement.x_speed != 0 || this.movement.y_speed != 0)
-    	this.sprite.set('walk')
+    	this.entity.sprite.set('walk')
     else
-    	this.sprite.set('stand')
+    	this.entity.sprite.set('stand')
 	
-    this.sprite.get().update(dt);
+    this.entity.sprite.get().update(dt);
 
 
 	this.hits(dt);
   },
 
   draw: function(ctx) {
-  	ctx.save();
-    ctx.translate(this.X, this.Y);
-    this.sprite.get().render(ctx);
-    ctx.restore();
-
-    ctx.fillStyle = 'rgba(0,0,255,0.4)';
-    if (Core.debug)
-    {
-    	ctx.fillRect(this.X, this.Y, this.width, this.height);
-    	
-    	// Debug velocity
-    	var text = JSON.stringify(this.movement)
-    	text = text.split(',').join("\n")
-		ctx.save();
-		ctx.translate(10, 10);
-		ctx.font = "13px Arial";
-		ctx.fillStyle = 'white'
-
-		var lineheight = 15;
-		var lines = text.split('\n');
-		for (var i = 0; i<lines.length; i++)
-		    ctx.fillText(lines[i], 0, 0 + (i*lineheight) );
-		ctx.restore();
-    }
+  	this.entity.draw(ctx)
   },
   hits: function(dt) {
-	if (this.X > Core.data.canvas.width - this.width)
-		this.X = Core.data.canvas.width - this.width
-	if (this.Y > Core.data.canvas.height - this.height)
-		this.Y = Core.data.canvas.height - this.height
-	if (this.X < 0)
-		this.X = 0
-	if (this.Y < 0)
-		this.Y = 0
+	if (this.entity.X > Core.data.canvas.width - this.entity.width)
+		this.entity.X = Core.data.canvas.width - this.entity.width
+	if (this.entity.Y > Core.data.canvas.height - this.entity.height)
+		this.entity.Y = Core.data.canvas.height - this.entity.height
+	if (this.entity.X < 0)
+		this.entity.X = 0
+	if (this.entity.Y < 0)
+		this.entity.Y = 0
 
 	// EnemyController hit
-	var rect1 = {x: this.X, y: this.Y, width: this.width, height: this.height}
+	var rect1 = {x: this.entity.X, y: this.entity.Y, width: this.entity.width, height: this.entity.height}
 	var rect2 = {x: EnemyController.X, y: EnemyController.Y, width: EnemyController.width, height: EnemyController.height}
 
 	// if (rect1.x < rect2.x + rect2.width &&
@@ -1328,24 +1429,23 @@ var HitTextController = {
 
 
 var EnemyController = {
-	X: 320,
-	Y: 120,
-	width: 32,
-	height: 32,
-	color: 'red',
 	
-	center: function()
+	entity: null,
+	
+	init: function()
 	{
-		return {
-			X: this.X + this.width/2,
-			Y: this.Y + this.height/2,
-		}
+		this.entity = new Entity({
+			X: 320,
+			Y: 120,
+			width: 32,
+			height: 32,
+			color: 'red',
+		})
 	},
 
 	draw: function (ctx)
 	{
-	    ctx.fillStyle = this.color;
-	    ctx.fillRect(this.X, this.Y, this.width, this.height);
+	    this.entity.draw(ctx)
 	},
 
 	checkBullets: function (bullets)
@@ -1382,7 +1482,7 @@ var EnemyController = {
 		var hitLength = this.getLengthShoot()
 		var weapon = WeaponController.getCurrentWeapon()
 
-		fixTotalLength = PlayerController.width/2 + this.width/2
+		fixTotalLength = PlayerController.width/2 + this.entity.width/2
 		totalLength = weapon.get('length')
 		lostDamage = gunDamage /totalLength * (hitLength-fixTotalLength)
 		lostDamage = lostDamage * weapon.get('maxLostDamageRate')
@@ -1394,12 +1494,12 @@ var EnemyController = {
 		if (damage > gunDamage)
 			damage = gunDamage
 
-		var totalDamage = PlayerUIController.damage(damage);
+		var totalDamage = UIController.damage(damage);
 		if (totalDamage.shield > 0)
 			itHadShield = true
 		else
 			itHadShield = false
-		HitTextController.create(this.X + this.width/2, this.Y + this.height/2, damage, itHadShield)
+		HitTextController.create(this.entity.X + this.entity.width/2, this.entity.Y + this.entity.height/2, damage, itHadShield)
 	},
 
 	getLengthShoot: function()
@@ -1431,10 +1531,10 @@ var EnemyController = {
 	getRectVectors: function ()
 	{
 		return [
-			{X:this.X,Y:this.Y},
-			{X:this.X,Y:this.Y + this.height},
-			{X:this.X + this.width,Y:this.Y + this.height},
-			{X:this.X + this.width,Y:this.Y},
+			{X:this.entity.X,Y:this.entity.Y},
+			{X:this.entity.X,Y:this.entity.Y + this.entity.height},
+			{X:this.entity.X + this.entity.width,Y:this.entity.Y + this.entity.height},
+			{X:this.entity.X + this.entity.width,Y:this.entity.Y},
 		];
 	}
 }
