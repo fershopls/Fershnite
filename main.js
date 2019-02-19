@@ -454,7 +454,7 @@ var ShootController = {
 			var bullet = this.createBullet(x, y, to.X, to.Y, weapon)
 			bullets.push(bullet)
 		}
-		HitController.checkBullets(bullets)
+		HitController.checkBulletsEnemiesHit(bullets)
 	},
 
 	createBullet: function (x, y, to_x, to_y, weapon)
@@ -1707,6 +1707,17 @@ var HitController = {
 		this.checkItemsPlayerHit(dt)
 	},
 
+	checkBulletsEnemiesHit: function(bullets)
+	{
+		var enemies = EnemyController.getStack()
+		for (id in enemies)
+		{
+			if (!enemies.hasOwnProperty(id))
+				continue
+			this.checkBulletsEnemyHit(bullets, enemies[id])
+		}
+	},
+
 	checkItemsPlayerHit: function ()
 	{
 		var items = ItemController.getStack()
@@ -1723,10 +1734,11 @@ var HitController = {
 		}
 	},
 
-	checkBullets: function (bullets)
+	checkBulletsEnemyHit : function (bullets, enemy)
 	{
 		var damage = 0
-		var points =  EnemyController.entity.getPoints()
+		console.log(enemy)
+		var points = enemy.entity.getPoints()
 		for (id in bullets)
 		{
 			if (!bullets.hasOwnProperty(id))
@@ -1739,7 +1751,7 @@ var HitController = {
 		
 		if (damage) 
 		{
-			EnemyController.getHitted(damage)
+			enemy.getHitted(damage)
 		}
 	},
 
@@ -1753,13 +1765,13 @@ var HitController = {
 		return hit
 	},
 
-	getShootLength: function()
+	getShootLength: function(enemy)
 	{
 		// where dx is the difference between the x-coordinates of the points
 		// and  dy is the difference between the y-coordinates of the points
 		// sqrt(dx^2 + dy^2)
-		var dx = PlayerController.entity.center().X - EnemyController.entity.center().X
-		var dy = PlayerController.entity.center().Y - EnemyController.entity.center().Y
+		var dx = PlayerController.entity.center().X - enemy.entity.center().X
+		var dy = PlayerController.entity.center().Y - enemy.entity.center().Y
 		return Math.sqrt(dx**2 + dy**2)
 	},
 
@@ -1919,7 +1931,7 @@ function Enemy (entity)
 
 	this.getHitted = function (gunDamage)
 	{
-		var hitLength = HitController.getShootLength()
+		var hitLength = HitController.getShootLength(this)
 		var weapon = WeaponController.getCurrentWeapon()
 
 		fixTotalLength = PlayerController.entity.width/2 + this.entity.width/2
@@ -1986,13 +1998,13 @@ var EnemyController = {
 			this.stack[id].Y = point.Y
 		} else {
 			// Create POS
-			this.stack[id] = new Entity({
+			this.stack[id] = new Enemy(new Entity({
 				id: id,
 				X: point.X,
 				Y: point.Y,
 				color: color,
 				sprite: new SpriteSheet(['enemy.stand'])
-			})
+			}))
 		}
 	},
 
@@ -2006,9 +2018,14 @@ var EnemyController = {
 		}
 	},
 
-	drawLoop: function (ctx, id, entity)
+	getStack: function()
 	{
-		entity.draw(ctx)
+		return this.stack
+	},
+
+	drawLoop: function (ctx, id, enemy)
+	{
+		enemy.entity.draw(ctx)
 	},
 }
 
