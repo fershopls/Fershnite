@@ -519,7 +519,7 @@ var PlayerUIController = {
 		this.drawShield(ctx);
 		HitTextController.draw(ctx);
 		this.drawGUI(ctx);
-  		this.drawItemSolt(ctx);
+  		this.drawWeaponSolt(ctx);
   		this.drawLoadedAmmo(ctx)
   		this.drawLeftAmmo(ctx)
 	},
@@ -551,11 +551,24 @@ var PlayerUIController = {
 		ctx.restore()
 	},
 
-	drawItemSolt: function(ctx)
+	drawWeaponSolt: function(ctx)
 	{
 		ctx.save()
 		ctx.translate(94, Core.data.canvas.height - 76)
 		this.sprite.get(WeaponController.getCurrentWeaponId()).render(ctx)
+		ctx.restore()
+
+		// prev weapon
+		ctx.save()
+		ctx.translate(30, Core.data.canvas.height - 60)
+		ctx.scale(.5,.5);
+		this.sprite.get(WeaponController.getPrevWeaponId()).render(ctx)
+		ctx.restore()
+
+		ctx.save()
+		ctx.translate(220, Core.data.canvas.height - 60)
+		ctx.scale(.5,.5);
+		this.sprite.get(WeaponController.getNextWeaponId()).render(ctx)
 		ctx.restore()
 	},
 
@@ -814,19 +827,46 @@ var WeaponController = {
 			return false
 	},
 
-	nextWeapon: function()
+	getNextWeaponId: function(id)
 	{
-		if (Date.now() - this.data.lastSwitchTime < this.data.minSwitchTime) return false;
+		id = typeof id == 'undefined'?this.getCurrentWeaponId() : id
 		var keys = Object.keys(this.weapons);
-		var index = keys.indexOf(this.getCurrentWeaponId())
+		var index = keys.indexOf(id)
 
 		next = index +1
 		if (typeof keys[next] == 'undefined')
 			next = 0
 
+		return keys[next]
+	},
+	
+	getPrevWeaponId: function(id)
+	{
+		id = typeof id == 'undefined'?this.getCurrentWeaponId() : id
+		var keys = Object.keys(this.weapons);
+		var index = keys.indexOf(id)
 
-		this.setWeapon(keys[next])
+		next = index -1
+		if (typeof keys[next] == 'undefined')
+			next = keys.length -1
+
+		return keys[next]
+	},
+
+	switchWeaponAllowed: function()
+	{
+		return Date.now() - this.data.lastSwitchTime >= this.data.minSwitchTime
+	},
+
+	switchWeapon: function(next)
+	{
+		if (!this.switchWeaponAllowed())
+			return false;
 		this.data.lastSwitchTime = Date.now()
+		
+		var weapon = next? this.getNextWeaponId() : this.getPrevWeaponId()
+		this.setWeapon(weapon)
+
 		Core.sound.weapon.play()
 	},
 
@@ -984,11 +1024,15 @@ var PlayerController = {
     // Change weapon
     if (input.isDown("x"))
     {
-    	WeaponController.nextWeapon()
+    	WeaponController.switchWeapon(true)
+    }
+    if (input.isDown("z"))
+    {
+    	WeaponController.switchWeapon(false)
     }
 
     // Toggle debug
-    if (input.isDown("z"))
+    if (input.isDown("q"))
     {
     	if (typeof Core.debugChange == 'undefined'
     		|| Date.now() - Core.debugChange >= 350)
