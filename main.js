@@ -171,11 +171,11 @@ $(document).ready(function(){
 				HitController,
 				InventoryController,
 
-				ShootController,
 				WeaponController,
 				
 				ItemController,
 
+				ShootController,
 				EnemyController,
 				PlayerController,
 				
@@ -413,10 +413,11 @@ var ShootController = {
 		if (Core.debug)
 			this.drawTrigometricThing(ctx, shoot);
     	var weapon = shoot.weapon;
-    	color_percent = 1 - (Date.now() - shoot.time) / weapon.get('lifetime')
+    	alpha = 1 - (Date.now() - shoot.time) / 50
 
 		ctx.beginPath();
-		ctx.strokeStyle = weapon.getRGBAColor(color_percent);
+		ctx.lineWidth = 2
+		ctx.strokeStyle = 'rgba(255, 235, 59, '+alpha+')'//weapon.getRGBAColor(alpha);
 		ctx.moveTo(shoot.from.X, shoot.from.Y);
 		ctx.lineTo(shoot.to.X, shoot.to.Y);
 		ctx.stroke();
@@ -545,13 +546,13 @@ var UIController = {
 	drawLoadedAmmo: function(ctx)
 	{
 		ctx.save()
-		ctx.translate(Core.data.canvas.width/2 -30, Core.data.canvas.height -81)
+		ctx.translate(Core.data.canvas.width/2 -15, Core.data.canvas.height -82)
 		
 		text = WeaponController.getCurrentWeapon().get('ammoLoaded')
 		text = text == -1?'∞':text
 		
 		ctx.textBaseline = 'middle'
-  		ctx.textAlign = 'center'
+  		ctx.textAlign = 'right'
 		ctx.font = '20px Russo One'
 		ctx.fillStyle = 'white'
 		ctx.fillText(text, 0, 0)
@@ -561,10 +562,10 @@ var UIController = {
 	drawLeftAmmo: function(ctx)
 	{
 		ctx.save()
-		ctx.translate(Core.data.canvas.width/2+45, Core.data.canvas.height -81)
+		ctx.translate(Core.data.canvas.width/2+35, Core.data.canvas.height -82)
 		text = WeaponController.getAmmo(WeaponController.getCurrentWeaponId())
 		ctx.textBaseline = 'middle'
-  		ctx.textAlign = 'center'
+  		ctx.textAlign = 'left'
 		ctx.font = '20px Russo One'
 		ctx.fillStyle = 'white'
 		ctx.fillText(text, 0, 0)
@@ -847,7 +848,7 @@ function Item (stack_id, item_id, entity, qty)
 	{
 		var Y = this.entity.Y + this.entity.height + 15
 		var X = this.entity.center().X
-		var text = 'PRESS E'
+		var text = this.item_id.toUpperCase()
 		ctx.textBaseline = 'middle'
   		ctx.textAlign = 'center'
 		ctx.fillStyle = 'white'
@@ -866,6 +867,20 @@ function Item (stack_id, item_id, entity, qty)
 var ItemController = {
 	stack: [],
 
+	randomPos: function()
+	{
+		var X = (Core.data.canvas.width -100) * Math.random()
+		var Y = (Core.data.canvas.height -200) * Math.random()
+		var round = 32
+		var X = Math.ceil(X/round)*round;
+		var Y = Math.ceil(Y/round)*round;
+
+		return {
+			X: X,
+			Y: Y,
+		}
+	},
+
 	init: function()
 	{
 		var sprites = {
@@ -875,34 +890,43 @@ var ItemController = {
 	  		hands: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
 	  		ammo: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [4], 'vertical'),
 		}
-		this.add(
-			new Item('weapons', 'shotgun', new Entity ({
-				X: Core.data.canvas.width - 450,
-				Y: Core.data.canvas.height - 200,
-				width:48,
-				height:32,
-				drawX: -8,
-				drawY: 0,
-				scaleX: 0.49,
-				scaleY: 0.49,
-				color: 'red',
-				sprite: new SpriteSheet({item: sprites['shotgun']}),
-			}))
-		)
+		var items = ['shotgun', 'smg', 'rifle']
 
-		this.add(
-			new Item('ammo', 'shotgun', new Entity ({
-				X: Core.data.canvas.width - 550,
-				Y: Core.data.canvas.height - 200,
-				width:48,
-				height:32,
-				scaleX: 0.49,
-				scaleY: 0.49,
-				drawX: -8,
-				color: 'red',
-				sprite: new SpriteSheet({item: sprites['ammo']}),
-			}), 10)
-		)
+		for (id in items)
+		{
+			if (!items.hasOwnProperty(id))
+				continue
+			var id = items[id]
+
+			this.add(new Item('weapons', id, new Entity ({
+						X: this.randomPos().X,
+						Y: this.randomPos().Y,
+						width:48,
+						height:32,
+						drawX: -8,
+						drawY: 0,
+						scaleX: 0.49,
+						scaleY: 0.49,
+						color: 'red',
+						sprite: new SpriteSheet({item: sprites[id]}),
+					}))
+				)
+				
+				this.add(new Item('ammo', id, new Entity ({
+						X: this.randomPos().X,
+						Y: this.randomPos().Y,
+						width:48,
+						height:32,
+						scaleX: 0.49,
+						scaleY: 0.49,
+						drawX: -8,
+						color: 'red',
+						sprite: new SpriteSheet({item: sprites['ammo']}),
+					}), 999)
+				)
+		}
+
+		
 	},
 
 	getStack: function ()
@@ -959,8 +983,8 @@ var InventoryController = {
 			'smg': 1
 		})
 		this.attachMany('ammo', {
-			'shotgun': 9,
-			'smg': 25,
+			'shotgun': 999,
+			'smg': 999,
 		})
 	},
 
@@ -1218,7 +1242,7 @@ var WeaponController = {
 	{
 		var weapons = {
 			shotgun: {
-				ammoCharger: 3,
+				ammoCharger: 5,
 				perdigons: 8,
 				damage: 8,
 				fireRate: 975,
@@ -1241,7 +1265,7 @@ var WeaponController = {
 				maxLostDamageRate: 0,
 			},
 			rifle: {
-				ammoCharger: 8,
+				ammoCharger: 30,
 				perdigons: 1,
 				damage: 30,
 				fireRate: 250,
@@ -1253,7 +1277,7 @@ var WeaponController = {
 				lostDamageRoundBy: 6,
 			},
 			smg: {
-				ammoCharger: 10,
+				ammoCharger: 30,
 				perdigons: 1,
 				damage: 16,
 				fireRate: 120,
@@ -1478,7 +1502,7 @@ var HitController = {
 }
 
 /*==========================================================================================
-=            #HIT TEXT CONTROLLE              ==============================================
+=            #HIT TEXT CONTROLLER             ==============================================
 ==========================================================================================*/
 
 
@@ -1486,8 +1510,6 @@ var HitTextController = {
 	stack: [],
 
 	lifetime: 650,
-	heightPadding: 30,
-	widthPadding: 50,
 
 	angle: 0,
 	angleIncrement: 30 * Math.PI / 180,
@@ -1541,8 +1563,8 @@ var HitTextController = {
 		}
 		
 		ctx.lineWidth = 2;
-		ctx.strokeText(text, 0, -45);
-		ctx.fillText(text, 0, -45);
+		ctx.strokeText(text, 0, -20);
+		ctx.fillText(text, 0, -20);
 
 
 		ctx.restore();
@@ -1562,12 +1584,17 @@ var EnemyController = {
 	
 	init: function()
 	{
+	  	var sprite = new SpriteSheet({
+		  	enemy: new Sprite('assets/player.png', [32*0, 32*3], [32, 32], 6, [0]),
+		  	//walk: new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
+	  	})
 		this.entity = new Entity({
 			X: 320,
 			Y: 120,
 			width: 32,
 			height: 32,
-			color: 'red',
+			color: 'purple',
+			sprite: sprite
 		})
 	},
 
