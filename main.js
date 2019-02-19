@@ -402,10 +402,16 @@ var ShootController = {
 
 	loopUpdate: function (id, shoot, dt)
 	{
-		if(shoot.weapon.get('lifetime') != 0 && shoot.time + shoot.weapon.get('lifetime') < Date.now())
+		if(this.getBulletLifeTime() != 0 && shoot.time + this.getBulletLifeTime() < Date.now())
 	    {
 			delete this.stack[id];
 	    }
+	},
+
+	getBulletLifeTime: function ()
+	{
+		// shoot.weapon.get('lifetime')
+		return Core.debug?1000:50
 	},
 
 	loopDraw: function (ctx, id, shoot)
@@ -413,14 +419,19 @@ var ShootController = {
 		if (Core.debug)
 			this.drawTrigometricThing(ctx, shoot);
     	var weapon = shoot.weapon;
-    	alpha = 1 - (Date.now() - shoot.time) / 50
+    	alpha = 1 - (Date.now() - shoot.time) / this.getBulletLifeTime()
+    	alpha = 1
 
+    	ctx.save()
 		ctx.beginPath();
-		ctx.lineWidth = 2
+		var max = this.getBulletLifeTime()
+		var min = Date.now() - shoot.time
+		ctx.lineWidth = (1 / max * min) * 8
 		ctx.strokeStyle = 'rgba(255, 235, 59, '+alpha+')'//weapon.getRGBAColor(alpha);
 		ctx.moveTo(shoot.from.X, shoot.from.Y);
 		ctx.lineTo(shoot.to.X, shoot.to.Y);
 		ctx.stroke();
+		ctx.restore()
 
 	},
 
@@ -1244,7 +1255,7 @@ var WeaponController = {
 			shotgun: {
 				ammoCharger: 5,
 				perdigons: 8,
-				damage: 8,
+				damage: 9,
 				fireRate: 975,
 				bloom: 40,
 				bloomIncrementRate: 0.5,
