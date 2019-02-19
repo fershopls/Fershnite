@@ -864,18 +864,24 @@ function Item (stack_id, item_id, entity, qty)
 	this.qty = qty?qty:1
 
 	this.grabbable = false
-	this.grabed = false
 
 	this.grab = function()
 	{
 		InventoryController.attach(this.stack_id, this.item_id, this.qty)
-		this.grabbed = true
 	}
 
 	this.update = function(dt, id)
 	{
-		if (this.grabbed)
+		// TODO Key E must be pressed each time and not just key down
+		if (ItemController.isAllowedToGrab()
+			&& this.playerHit
+			&& ItemController.isGrabbingItem())
+		{	
+			this.grab()
 			ItemController.removeItemById(id)
+			ItemController.startTimeGrabWait()
+		}
+		this.playerHit = false
 	}
 
 	this.draw = function(ctx)
@@ -885,11 +891,17 @@ function Item (stack_id, item_id, entity, qty)
 			this.drawGrabbable(ctx)
 	}
 
+	this.allowGrabbable = function ()
+	{
+		this.grabbable = ItemController.isAllowedToBeGrabbable()
+	}
+
+	this.playerHit = false
 	this.hit = function (by)
 	{
 		if (by == PlayerController)
 		{
-			this.grabbable = true
+			this.playerHit = true
 		}
 	}
 
@@ -913,6 +925,37 @@ function Item (stack_id, item_id, entity, qty)
 var ItemController = {
 	stack: [],
 
+	grab: {
+		lastTime: 0,
+		minGrabTime: 500,
+		minGrabbableTime: 450,
+		lastKeyWasDown: false,
+	},
+	
+	isAllowedToGrab: function()
+	{
+		return Date.now() - this.grab.lastTime >= this.grab.minGrabTime
+	},
+
+	isAllowedToBeGrabbable: function()
+	{
+		return Date.now() - this.grab.lastTime >= this.grab.minGrabbableTime
+	},
+
+	isGrabbingItem: function()
+	{
+		if (input.isDown('e') && !this.grab.lastKeyWasDown)
+		{
+			this.grab.lastKeyWasDown = true
+			return true
+		}
+	},
+
+	startTimeGrabWait: function()
+	{
+		this.grab.lastTime = Date.now()
+	},
+
 	randomPos: function()
 	{
 		var X = (Core.data.canvas.width -100) * Math.random()
@@ -922,8 +965,8 @@ var ItemController = {
 		var Y = Math.ceil(Y/round)*round;
 
 		return {
-			X: X,
-			Y: Y,
+			X: 100,
+			Y: 200,
 		}
 	},
 
@@ -958,7 +1001,7 @@ var ItemController = {
 					}))
 				)
 				
-				this.add(new Item('ammo', id, new Entity ({
+				this.add(new Item('ammo', id+' ammo', new Entity ({
 						X: this.randomPos().X,
 						Y: this.randomPos().Y,
 						width:48,
@@ -985,6 +1028,13 @@ var ItemController = {
 		this.stack.push(item)
 	},
 
+	getItem: function(item_id)
+	{
+		if (this.getStack().hasOwnProperty(item_id))
+			return this.getStack()[item_id]
+		
+		return false
+	},
 
 	removeItemById: function (item_id)
 	{
@@ -993,6 +1043,10 @@ var ItemController = {
 
 	update: function(dt)
 	{
+		// Update Key
+		if (!input.isDown('e'))
+			this.grab.lastKeyWasDown = false
+
 		for (id in this.stack)
 		{
 			if (!this.stack.hasOwnProperty(id))
@@ -1479,10 +1533,22 @@ var PlayerController = {
 
 
 	this.dontFallOut(dt);
+  	
+  	this.updateAllowItemGrabbable()
   },
 
   draw: function(ctx) {
   	this.entity.draw(ctx)
+  },
+
+  updateAllowItemGrabbable: function()
+  {
+	if(this.hitItemId && ItemController.getItem(this.hitItemId))
+	{
+		ItemController.getItem(this.hitItemId).allowGrabbable()
+		ItemController.getItem(this.hitItemId).hit(PlayerController)
+		this.hitItemId = null
+	}
   },
 
   dontFallOut: function(dt) {
@@ -1496,14 +1562,12 @@ var PlayerController = {
 		this.entity.Y = 0
   },
 
-  hit: function (by)
+  hitItemId: null,
+  hit: function (by, id)
   {
-  	if (Item.prototype.isPrototypeOf(by))
+  	if (by == Item)
   	{
-	    if (input.isDown("e"))
-	    {
-	    	by.grab()
-  		}
+    	this.hitItemId = id
   	}
   },
 };
@@ -1541,8 +1605,7 @@ var HitController = {
 			var item = items[id]
 			if (this.boxCollides(PlayerController.entity, item.entity))
 			{
-				PlayerController.hit(item)
-				item.hit(PlayerController)
+				PlayerController.hit(Item, id)
 			}
 		}
 	},
