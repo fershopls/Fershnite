@@ -283,38 +283,43 @@ var AimController = {
 			}
 		}
 		if (Core.debug)
-			ctx.stroke()
-
-		// Do hit test lines
-		var isCollidingWithEnemy = false;
-		for (id in hitTests)
 		{
-			if (hitTests.hasOwnProperty(id))
-			{
-				var ht = hitTests[id]
-				if (EnemyController.checkBulletCollide(ht))
-					isCollidingWithEnemy = true;
-			}
+			ctx.strokeStyle = 'white'
+			ctx.stroke()
 		}
 		
 		// Draw area shape
-
 		ctx.beginPath()
+		ctx.fillStyle = 'rgba(255,255,255,0.25)'
 		ctx.moveTo(this.getPivot().X, this.getPivot().Y);
 		ctx.lineTo(to[0].X, to[0].Y);
 		ctx.lineTo(to[1].X, to[1].Y);
 		ctx.lineTo(to[2].X, to[2].Y);
 		ctx.lineTo(this.getPivot().X, this.getPivot().Y);
-
-		ctx.fillStyle = 'rgba(255,255,255,0.25)'
-		if (isCollidingWithEnemy)
+		if (Core.settings.autoShoot || Core.debug)
 		{
-			if (Core.settings.autoShoot)
-				WeaponController.shoot()
-			if (Core.debug)
-				ctx.fillStyle = 'rgba(255,0,0,0.5)'
+			if (this.checkCollisionWithEnemy(hitTests))
+			{
+				if (Core.settings.autoShoot)
+					WeaponController.shoot()
+				if (Core.debug)
+					ctx.fillStyle = 'rgba(255,0,0,0.5)'
+			}
 		}
 		ctx.fill()
+	},
+
+	checkCollisionWithEnemy: function(bullets)
+	{
+		var hit = false
+		for (id in bullets)
+		{
+			if (!bullets.hasOwnProperty(id))
+				continue;
+
+			if (HitController.isBulletColliding(bullets[id], EnemyController.entity.getPoints()))
+				return true
+		}
 	},
 
 	createHitTestLine: function(from, to)
@@ -361,7 +366,7 @@ var ShootController = {
 			var bullet = this.createBullet(x, y, to.X, to.Y, weapon)
 			bullets.push(bullet)
 		}
-		EnemyController.checkBullets(bullets)
+		HitController.checkBullets(bullets)
 	},
 
 	createBullet: function (x, y, to_x, to_y, weapon)
@@ -776,6 +781,16 @@ function Entity (settings)
 	  		X: this.X + this.width/2,
 	  		Y: this.Y + this.height/2,
 	  	}
+  	}
+
+  	this.getPoints = function ()
+  	{
+		return [
+			{X:this.X, Y:this.Y},
+			{X:this.X, Y:this.Y + this.height},
+			{X:this.X + this.width, Y:this.Y + this.height},
+			{X:this.X + this.width, Y:this.Y},
+		];
   	}
 
   	this.draw = function (ctx)
@@ -1254,6 +1269,7 @@ var WeaponController = {
 		var weapons = {
 			shotgun: {
 				ammoCharger: 5,
+				ammoReloadTime: 1500,
 				perdigons: 8,
 				damage: 9,
 				fireRate: 975,
@@ -1509,7 +1525,63 @@ var HitController = {
 				item.hit(PlayerController)
 			}
 		}
-	}
+	},
+
+	checkBullets: function (bullets)
+	{
+		var damage = 0
+		var points =  EnemyController.entity.getPoints()
+		for (id in bullets)
+		{
+			if (!bullets.hasOwnProperty(id))
+				continue;			
+			if (this.isBulletColliding(bullets[id], points))
+			{
+				damage += bullets[id].weapon.get('damage')
+			}
+		}
+		
+		if (damage) 
+		{
+			EnemyController.getHitted(damage)
+		}
+	},
+
+	isBulletColliding: function (bullet, points)
+	{
+		var hit = false
+		
+		for (i = 1; i < points.length; i++)
+			hit = hit || this.isColliding(bullet.from, bullet.to, points[i-1], points[i])
+		
+		return hit
+	},
+
+	getShootLength: function()
+	{
+		// where dx is the difference between the x-coordinates of the points
+		// and  dy is the difference between the y-coordinates of the points
+		// sqrt(dx^2 + dy^2)
+		var dx = PlayerController.entity.center().X - EnemyController.entity.center().X
+		var dy = PlayerController.entity.center().Y - EnemyController.entity.center().Y
+		return Math.sqrt(dx**2 + dy**2)
+	},
+
+	isColliding: function (a, b, c, d)
+	{
+		denominator = ((b.X - a.X) * (d.Y - c.Y)) - ((b.Y - a.Y) * (d.X - c.X));
+		numerator1 = ((a.Y - c.Y) * (d.X - c.X)) - ((a.X - c.X) * (d.Y - c.Y));
+		numerator2 = ((a.Y - c.Y) * (b.X - a.X)) - ((a.X - c.X) * (b.Y - a.Y));
+
+
+    	// Detect coincident lines (has a problem, read below)
+    	if (denominator == 0) return numerator1 == 0 && numerator2 == 0;
+
+    	r = numerator1 / denominator;
+    	s = numerator2 / denominator;
+
+    	return (r >= 0 && r <= 1) && (s >= 0 && s <= 1);
+	},
 }
 
 /*==========================================================================================
@@ -1614,38 +1686,9 @@ var EnemyController = {
 	    this.entity.draw(ctx)
 	},
 
-	checkBullets: function (bullets)
-	{
-		var damage = 0
-		for (id in bullets)
-		{
-			if (bullets.hasOwnProperty(id)) {
-				var hit = this.checkBulletCollide(bullets[id])
-				if (hit)
-				{
-					damage += bullets[id].weapon.get('damage')
-				}
-			}
-		}
-		
-		if (damage) this.getHitted(damage)
-	},
-
-	checkBulletCollide: function (bullet)
-	{
-		var vec = this.getRectVectors()
-		
-		var hit = this.isColliding(bullet.from, bullet.to, vec[0], vec[1])
-		hit = hit || this.isColliding(bullet.from, bullet.to, vec[1], vec[2])
-		hit = hit || this.isColliding(bullet.from, bullet.to, vec[2], vec[3])
-		hit = hit || this.isColliding(bullet.from, bullet.to, vec[3], vec[0])
-
-		return hit
-	},
-
 	getHitted: function (gunDamage)
 	{
-		var hitLength = this.getLengthShoot()
+		var hitLength = HitController.getShootLength()
 		var weapon = WeaponController.getCurrentWeapon()
 
 		fixTotalLength = PlayerController.entity.width/2 + this.entity.width/2
@@ -1667,42 +1710,6 @@ var EnemyController = {
 			itHadShield = false
 		HitTextController.create(this.entity.X + this.entity.width/2, this.entity.Y + this.entity.height/2, damage, itHadShield)
 	},
-
-	getLengthShoot: function()
-	{
-		// where dx is the difference between the x-coordinates of the points
-		// and  dy is the difference between the y-coordinates of the points
-		// sqrt(dx^2 + dy^2)
-		var dx = PlayerController.entity.center().X - this.entity.center().X
-		var dy = PlayerController.entity.center().Y - this.entity.center().Y
-		return Math.sqrt(dx**2 + dy**2)
-	},
-
-	isColliding: function (a, b, c, d)
-	{
-		denominator = ((b.X - a.X) * (d.Y - c.Y)) - ((b.Y - a.Y) * (d.X - c.X));
-		numerator1 = ((a.Y - c.Y) * (d.X - c.X)) - ((a.X - c.X) * (d.Y - c.Y));
-		numerator2 = ((a.Y - c.Y) * (b.X - a.X)) - ((a.X - c.X) * (b.Y - a.Y));
-
-
-    	// Detect coincident lines (has a problem, read below)
-    	if (denominator == 0) return numerator1 == 0 && numerator2 == 0;
-
-    	r = numerator1 / denominator;
-    	s = numerator2 / denominator;
-
-    	return (r >= 0 && r <= 1) && (s >= 0 && s <= 1);
-	},
-
-	getRectVectors: function ()
-	{
-		return [
-			{X:this.entity.X,Y:this.entity.Y},
-			{X:this.entity.X,Y:this.entity.Y + this.entity.height},
-			{X:this.entity.X + this.entity.width,Y:this.entity.Y + this.entity.height},
-			{X:this.entity.X + this.entity.width,Y:this.entity.Y},
-		];
-	}
 }
 
 
