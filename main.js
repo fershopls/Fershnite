@@ -115,7 +115,7 @@ var Core = {
 function SpriteSheet (stack)
 {
 	this.stack = stack?stack:{}
-	this.currentId = null;
+	this.currentId = Object.keys(this.stack)[0];
 
 	this.set = function(id)
 	{
@@ -168,6 +168,7 @@ $(document).ready(function(){
 		Core.init(document.getElementById('canshoot'),
 			[
 				MouseController,
+				HitController,
 				InventoryController,
 
 				ShootController,
@@ -196,7 +197,7 @@ var AimController = {
 	
 	getPivot: function()
 	{
-		return PlayerController.center()
+		return PlayerController.entity.center()
 	},
 
 	getAngleFromTo: function (x, y, to_x, to_y)
@@ -544,9 +545,13 @@ var UIController = {
 	drawLoadedAmmo: function(ctx)
 	{
 		ctx.save()
-		ctx.translate(Core.data.canvas.width/2-40, Core.data.canvas.height -78)
+		ctx.translate(Core.data.canvas.width/2 -30, Core.data.canvas.height -81)
+		
 		text = WeaponController.getCurrentWeapon().get('ammoLoaded')
 		text = text == -1?'∞':text
+		
+		ctx.textBaseline = 'middle'
+  		ctx.textAlign = 'center'
 		ctx.font = '20px Russo One'
 		ctx.fillStyle = 'white'
 		ctx.fillText(text, 0, 0)
@@ -556,8 +561,10 @@ var UIController = {
 	drawLeftAmmo: function(ctx)
 	{
 		ctx.save()
-		ctx.translate(Core.data.canvas.width/2+36, Core.data.canvas.height -78)
+		ctx.translate(Core.data.canvas.width/2+45, Core.data.canvas.height -81)
 		text = WeaponController.getAmmo(WeaponController.getCurrentWeaponId())
+		ctx.textBaseline = 'middle'
+  		ctx.textAlign = 'center'
 		ctx.font = '20px Russo One'
 		ctx.fillStyle = 'white'
 		ctx.fillText(text, 0, 0)
@@ -728,8 +735,12 @@ function Entity (settings)
 		var defaultSettings = {
 			X: 220,
 			Y: 270,
+			scaleX: 1,
+			scaleY: 1,
 			width: 32,
 			height: 32,
+			drawX: 0,
+			drawY: 0,
 			color: "#00A",
 			sprite: new SpriteSheet()
 		}
@@ -760,9 +771,10 @@ function Entity (settings)
   		if (this.sprite.get())
   		{
 	  		ctx.save();
-		    ctx.translate(this.X, this.Y);
-		    this.sprite.get().render(ctx);
-		    ctx.restore();
+		    ctx.translate(this.X + this.drawX, this.Y + this.drawY);
+		    ctx.scale(this.scaleX, this.scaleY)
+		    this.sprite.get().render(ctx)
+		    ctx.restore()
   		} else {
 	  		ctx.fillStyle = this.color;
 		    ctx.fillRect(this.X, this.Y, this.width, this.height);
@@ -794,30 +806,54 @@ function Entity (settings)
 /*==========================================================================================
 =            #ITEM CLASS                       =============================================
 ==========================================================================================*/
-function Item (stack_id, item_id)
+function Item (stack_id, item_id, entity, qty)
 {
 	this.stack_id = stack_id
 	this.item_id = item_id
+	this.entity = entity
+	this.qty = qty?qty:1
+
+	this.grabbable = false
+	this.grabed = false
 
 	this.grab = function()
 	{
-		InventoryController.attach(this.stack_id, this.item_id)
+		InventoryController.attach(this.stack_id, this.item_id, this.qty)
+		this.grabbed = true
 	}
 
-	this.update = function(dt)
+	this.update = function(dt, id)
 	{
-		
+		if (this.grabbed)
+			ItemController.removeItemById(id)
 	}
 
 	this.draw = function(ctx)
 	{
-		ctx.save()
-		ctx.translate(Core.data.canvas.width - 100, Core.data.canvas.height - 200)
-		ctx.scale(0.5, 0.5)
-		ctx.fillStyle = 'lightblue'
-		ctx.fillRect(0,0,128,64)
-		UIController.sprite.get(this.item_id).render(ctx)
-		ctx.restore()
+		this.entity.draw(ctx)
+		if (this.grabbable)
+			this.drawGrabbable(ctx)
+	}
+
+	this.hit = function (by)
+	{
+		if (by == PlayerController)
+		{
+			this.grabbable = true
+		}
+	}
+
+	this.drawGrabbable = function (ctx)
+	{
+		var Y = this.entity.Y + this.entity.height + 15
+		var X = this.entity.center().X
+		var text = 'PRESS E'
+		ctx.textBaseline = 'middle'
+  		ctx.textAlign = 'center'
+		ctx.fillStyle = 'white'
+		ctx.font = '18px Russo One'
+		ctx.fillText(text, X, Y)
+		this.grabbable = false
 	}
 }
 
@@ -832,12 +868,57 @@ var ItemController = {
 
 	init: function()
 	{
-		this.add(new Item('weapons', 'shotgun'))
+		var sprites = {
+	  		rifle: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
+	  		shotgun: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
+	  		smg: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
+	  		hands: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
+	  		ammo: new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [4], 'vertical'),
+		}
+		this.add(
+			new Item('weapons', 'shotgun', new Entity ({
+				X: Core.data.canvas.width - 450,
+				Y: Core.data.canvas.height - 200,
+				width:48,
+				height:32,
+				drawX: -8,
+				drawY: 0,
+				scaleX: 0.49,
+				scaleY: 0.49,
+				color: 'red',
+				sprite: new SpriteSheet({item: sprites['shotgun']}),
+			}))
+		)
+
+		this.add(
+			new Item('ammo', 'shotgun', new Entity ({
+				X: Core.data.canvas.width - 550,
+				Y: Core.data.canvas.height - 200,
+				width:48,
+				height:32,
+				scaleX: 0.49,
+				scaleY: 0.49,
+				drawX: -8,
+				color: 'red',
+				sprite: new SpriteSheet({item: sprites['ammo']}),
+			}), 10)
+		)
+	},
+
+	getStack: function ()
+	{
+		return this.stack
 	},
 
 	add: function(item)
 	{
 		this.stack.push(item)
+	},
+
+
+	removeItemById: function (item_id)
+	{
+		this.stack.splice(item_id, 1)
 	},
 
 	update: function(dt)
@@ -847,7 +928,7 @@ var ItemController = {
 			if (!this.stack.hasOwnProperty(id))
 				continue;
 
-			this.stack[id].update(dt)
+			this.stack[id].update(dt, id)
 		}
 	},
 
@@ -873,14 +954,21 @@ var InventoryController = {
 
 	init: function ()
 	{
-		// this.attachMany('weapons', {
-		// 	'shotgun': 1,
-		// 	'smg': 1
-		// })
-		// this.attachMany('ammo', {
-		// 	'shotgun': 9,
-		// 	'smg': 25,
-		// })
+		this.attachMany('weapons', {
+			'shotgun': 1,
+			'smg': 1
+		})
+		this.attachMany('ammo', {
+			'shotgun': 9,
+			'smg': 25,
+		})
+	},
+
+	update: function(dt)
+	{
+		var weapons = this.getStack('weapons')
+		if (!WeaponController.getCurrentWeapon() && Object.keys(weapons).length >= 1)
+			WeaponController.setWeapon(Object.keys(weapons)[0])
 	},
 
 	getStack: function (stack_id)
@@ -1027,7 +1115,7 @@ var WeaponController = {
 		var ammoLoaded = this.getCurrentWeapon().get('ammoLoaded')
 		if (ammoLoaded > 0 || ammoLoaded == -1)
 		{
-			ShootController.create(PlayerController.center().X, PlayerController.center().Y,
+			ShootController.create(PlayerController.entity.center().X, PlayerController.entity.center().Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeapon())
 			// TODO Sounds if not exists not throw things
@@ -1319,13 +1407,14 @@ var PlayerController = {
     this.entity.sprite.get().update(dt);
 
 
-	this.hits(dt);
+	this.dontFallOut(dt);
   },
 
   draw: function(ctx) {
   	this.entity.draw(ctx)
   },
-  hits: function(dt) {
+
+  dontFallOut: function(dt) {
 	if (this.entity.X > Core.data.canvas.width - this.entity.width)
 		this.entity.X = Core.data.canvas.width - this.entity.width
 	if (this.entity.Y > Core.data.canvas.height - this.entity.height)
@@ -1334,20 +1423,59 @@ var PlayerController = {
 		this.entity.X = 0
 	if (this.entity.Y < 0)
 		this.entity.Y = 0
+  },
 
-	// EnemyController hit
-	var rect1 = {x: this.entity.X, y: this.entity.Y, width: this.entity.width, height: this.entity.height}
-	var rect2 = {x: EnemyController.X, y: EnemyController.Y, width: EnemyController.width, height: EnemyController.height}
-
-	// if (rect1.x < rect2.x + rect2.width &&
-	//    rect1.x + rect1.width > rect2.x &&
-	//    rect1.y < rect2.y + rect2.height &&
-	//    rect1.height + rect1.y > rect2.y) {
-	//     console.log('collide')
-	// }
+  hit: function (by)
+  {
+  	if (Item.prototype.isPrototypeOf(by))
+  	{
+	    if (input.isDown("e"))
+	    {
+	    	by.grab()
+  		}
+  	}
   },
 };
 
+
+/*==========================================================================================
+=            #HIT      CONTROLLER            ==============================================
+==========================================================================================*/
+
+var HitController = {
+	collides: function (x, y, r, b, x2, y2, r2, b2) {
+    	return !(r <= x2 || x > r2 || b <= y2 || y > b2);
+	},
+
+	boxCollides: function (entity1, entity2) {
+    	return this.collides(entity1.X, entity1.Y,
+            entity1.X + entity1.width, entity1.Y + entity1.height,
+            entity2.X, entity2.Y,
+            entity2.X + entity2.width, entity2.Y + entity2.height);
+	},
+
+	update: function (dt)
+	{
+		this.checkItemsPlayerHit(dt)
+	},
+
+	checkItemsPlayerHit: function ()
+	{
+		var items = ItemController.getStack()
+
+		for (id in items)
+		{
+			if (!items.hasOwnProperty(id))
+				continue;
+			var item = items[id]
+			if (this.boxCollides(PlayerController.entity, item.entity))
+			{
+				PlayerController.hit(item)
+				item.hit(PlayerController)
+			}
+		}
+	}
+}
 
 /*==========================================================================================
 =            #HIT TEXT CONTROLLE              ==============================================
@@ -1482,7 +1610,7 @@ var EnemyController = {
 		var hitLength = this.getLengthShoot()
 		var weapon = WeaponController.getCurrentWeapon()
 
-		fixTotalLength = PlayerController.width/2 + this.entity.width/2
+		fixTotalLength = PlayerController.entity.width/2 + this.entity.width/2
 		totalLength = weapon.get('length')
 		lostDamage = gunDamage /totalLength * (hitLength-fixTotalLength)
 		lostDamage = lostDamage * weapon.get('maxLostDamageRate')
@@ -1507,8 +1635,8 @@ var EnemyController = {
 		// where dx is the difference between the x-coordinates of the points
 		// and  dy is the difference between the y-coordinates of the points
 		// sqrt(dx^2 + dy^2)
-		var dx = PlayerController.center().X - this.center().X
-		var dy = PlayerController.center().Y - this.center().Y
+		var dx = PlayerController.entity.center().X - this.entity.center().X
+		var dy = PlayerController.entity.center().Y - this.entity.center().Y
 		return Math.sqrt(dx**2 + dy**2)
 	},
 

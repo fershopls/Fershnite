@@ -32,7 +32,6 @@
                 frame = 0;
             }
 
-
             var x = this.pos[0];
             var y = this.pos[1];
 
