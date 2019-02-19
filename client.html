@@ -1,0 +1,90 @@
+//index.html
+<!DOCTYPE html>
+<html>
+<head>
+ <!-- include bootstap and jquery cdn -->
+ <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+ <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<div class="container">
+ <br>
+ <div class="jumbotron">
+ <h1 class="display-4">Send Message</h1>
+ <br>
+ <input id = "name" class="form-control" placeholder="Name">
+ <br>
+ <textarea id = "message" class="form-control" placeholder="Your Message Here">
+</textarea>
+ <br>
+ <button id="send" onclick="Player.move()" class="btn btn-success">Send</button>
+ </div>
+ <div id="messages">
+</div>
+</div>
+<script>
+	var Enemies = {
+		stack: {},
+
+		set: function (id, point)
+		{
+			console.log('ENEMY',id,point)
+			point = point?point: {X:0, Y:0}
+			this.stack[id] = point
+		},
+	}
+	var Player = {
+		id: null,
+		X: 0,
+		Y: 0,
+
+		setId: function(id)
+		{
+			console.log('ID', id)
+			this.id = id
+		},
+
+		getPoint: function()
+		{
+			return {
+				X: this.X,
+				Y: this.Y,
+			}
+		},
+
+		move: function()
+		{
+			this.X +=1
+			socket.emit('move', Player.getPoint());
+		},
+
+		loadOtherPlayers: function(players)
+		{
+			console.log('PLAYERS', players)
+			for (id in players)
+			{
+				if (!players.hasOwnProperty(id)
+					|| this.id == id)
+					continue
+				Enemies.set(id, players[id])
+			}
+		}
+	}
+	
+	var socket = io();
+	socket.on('id', function(id){
+		Player.setId(id)
+	})
+	socket.on('players', function(players){
+		Player.loadOtherPlayers(players)
+	})
+	socket.on('enemy', function(id, point){
+		Enemies.set(id, point)
+	})
+	socket.on('move', function(id, point){
+		console.log(id, point)
+	})
+
+</script>
+</body>
+</html>

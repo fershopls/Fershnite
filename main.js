@@ -10,6 +10,7 @@
 var Core = {
 
 	debug: false,
+	io_debug: true,
 	modules: [],
 	settings: {
 		autoShoot: false,
@@ -272,39 +273,6 @@ function sound(src) {
     this.sound.pause();
   }
 }
-
-/*==========================================================================================
-=            #RESOURCES #INIT                  =============================================
-==========================================================================================*/
-$(document).ready(function(){
-	resources.load([
-	    'assets/gui.png',
-	    'assets/player.png',
-	    'assets/gun.png',
-	]);
-	resources.onReady(function(){
-		Core.init(document.getElementById('canshoot'),
-			[
-				MouseController,
-				SpriteController,
-				HitController,
-				InventoryController,
-
-				WeaponController,
-				
-				ItemController,
-
-				ShootController,
-				EnemyController,
-				PlayerController,
-				
-
-				AimController,
-				TextController,
-				UIController,
-			])
-	});
-});
 
 
 
@@ -895,6 +863,11 @@ function Entity (settings)
 	  	}
   	}
 
+  	this.getPoint = function ()
+  	{
+		return {X:this.X, Y:this.Y}
+  	}
+
   	this.getPoints = function ()
   	{
 		return [
@@ -924,7 +897,8 @@ function Entity (settings)
 	    {
 	    	ctx.strokeStyle = this.color;
 	    	ctx.strokeRect(this.X, this.Y, this.width, this.height);
-		    TextController.create({size:11, font:'Arial', X: this.center().X, Y: this.center().Y, text: this.alias, align:'center'})
+	    	var text = this.id
+		    TextController.create({size:11, font:'Arial', X: this.center().X, Y: this.Y + this.height, text: text, align:'center'})
 	    	
 	    	// Debug velocity DEBUG TEXT JSON 
 	  //   	var text = JSON.stringify(this.movement)
@@ -1518,6 +1492,30 @@ var PlayerController = {
   	aceleration: 500, // 0 speed to max_speed in ms 
   },
   
+  setId: function(id)
+  {
+  	this.entity.id = id
+  	if (Core.io_debug)
+  		console.log('ID', id)
+  },
+
+  loadOtherPlayers: function(players)
+  {
+	if (Core.io_debug)
+		console.log('LOADING PLAYERS', Object.keys(players).length)
+	
+	for (id in players)
+	{
+		if (!players.hasOwnProperty(id))
+			continue
+
+		if (id == this.entity.id)
+			continue
+
+		EnemyController.set(id, players[id], 'black')
+	}
+  },
+  
   init: function ()
   {
   	// url, pos, size, speed, frames, dir, once
@@ -1535,6 +1533,8 @@ var PlayerController = {
   },
 
   update: function(dt){
+  	this.captureCurrentPoint()
+
   	if(input.isDown('DOWN') || input.isDown('s'))
     {
     	ms = this.movement.max_speed / this.movement.aceleration
@@ -1631,6 +1631,23 @@ var PlayerController = {
 	this.dontFallOut(dt);
   	
   	this.updateAllowItemGrabbable()
+
+  	this.socketSendMove()
+  },
+
+  capturedPoint: {},
+  captureCurrentPoint: function ()
+  {
+	this.capturedPoint = this.entity.getPoint()
+  },
+
+  socketSendMove: function()
+  {
+  	if (this.capturedPoint.X != this.entity.getPoint().X
+		|| this.capturedPoint.Y != this.entity.getPoint().Y)
+  	{
+		Socket.io.emit('playerMove', this.entity.id, this.entity.getPoint())
+  	}
   },
 
   draw: function(ctx) {
@@ -1893,34 +1910,14 @@ var HitTextController = {
 
 
 /*==========================================================================================
-=            #ENEMY CONTROLLER                 =============================================
+=            #ENEMY CLASS                      =============================================
 ==========================================================================================*/
 
+function Enemy (entity)
+{
+	this.entity = entity
 
-var EnemyController = {
-	
-	entity: null,
-	
-	init: function()
-	{
-	  	var sprite = new SpriteSheet(['enemy.stand'])
-		this.entity = new Entity({
-			X: 320,
-			Y: 120,
-			alias: 'enemy',
-			width: 32,
-			height: 32,
-			color: 'purple',
-			sprite: sprite
-		})
-	},
-
-	draw: function (ctx)
-	{
-	    this.entity.draw(ctx)
-	},
-
-	getHitted: function (gunDamage)
+	this.getHitted = function (gunDamage)
 	{
 		var hitLength = HitController.getShootLength()
 		var weapon = WeaponController.getCurrentWeapon()
@@ -1943,6 +1940,68 @@ var EnemyController = {
 		else
 			itHadShield = false
 		HitTextController.create(this.entity.X + this.entity.width/2, this.entity.Y + this.entity.height/2, damage, itHadShield)
+	}
+}
+
+
+/*==========================================================================================
+=            #ENEMY CONTROLLER                 =============================================
+==========================================================================================*/
+
+
+var EnemyController = {
+	
+	stack: {},
+	
+	_init: function()
+	{
+	  	var sprite = new SpriteSheet(['enemy.stand'])
+		this.entity = new Entity({
+			X: 320,
+			Y: 120,
+			alias: 'enemy',
+			width: 32,
+			height: 32,
+			color: 'purple',
+			sprite: sprite
+		})
+	},
+
+
+	set: function (id, point, color)
+	{
+		if (Core.io_debug)
+			console.log('ENEMY', id, point)
+
+		if (this.stack.hasOwnProperty(id))
+		{
+			// Update POS
+			this.stack[id].X = point.X
+			this.stack[id].Y = point.Y
+		} else {
+			// Create POS
+			this.stack[id] = new Entity({
+				id: id,
+				X: point.X,
+				Y: point.Y,
+				color: color
+			})
+		}
+	},
+
+	draw: function(ctx)
+	{
+		for (id in this.stack)
+		{
+			if (!this.stack.hasOwnProperty(id))
+				continue;
+			this.drawLoop(ctx, id, this.stack[id])
+		}
+	},
+
+	drawLoop: function (ctx, id, entity)
+	{
+		entity.draw(ctx)
 	},
 }
 
@@ -1977,4 +2036,64 @@ var MouseController = {
 		});
 	}
 
+}
+
+
+/*==========================================================================================
+=            #RESOURCES #INIT                  =============================================
+==========================================================================================*/
+$(document).ready(function(){
+	resources.load([
+	    'assets/gui.png',
+	    'assets/player.png',
+	    'assets/gun.png',
+	]);
+	resources.onReady(function(){
+		var Controllers = [
+				Socket,
+				MouseController,
+				SpriteController,
+				HitController,
+				InventoryController,
+
+				WeaponController,
+				
+				ItemController,
+
+				ShootController,
+				EnemyController,
+				PlayerController,
+				
+
+				AimController,
+				TextController,
+				UIController,
+			]
+		Core.init(document.getElementById('canshoot'), Controllers)
+	});
+});
+
+/*=============================================
+=            #SOCKET #IO                      =
+=============================================*/
+var Socket = {
+
+	io: null,
+	init: function()
+	{
+		this.io = io()
+
+		this.io.on('id', function(id){
+			PlayerController.setId(id)
+		})
+		this.io.on('players', function(players){
+			PlayerController.loadOtherPlayers(players)
+		})
+		this.io.on('enemy', function(id, point){
+			EnemyController.set(id, point, 'red')
+		})
+		this.io.on('move', function(id, point){
+			console.log('MOVE', id, point)
+		})
+	}
 }
