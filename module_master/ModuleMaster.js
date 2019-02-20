@@ -93,7 +93,7 @@ var ModuleMaster = {
 		return removeReturn
 	},
 
-	setSingleProperty: function (data_id, key, value, sync)
+	setSingleProperty: function (data_id, key, value, sync, socket)
 	{
 		var property = this.getProperty(key)
 		if (this.get(data_id, key) == value)
@@ -114,16 +114,16 @@ var ModuleMaster = {
 					key: property.id,
 					value: this.get(property.id, null, data_id)
 				})
-				this.syncOutput(model)
+				this.syncOutput(model, socket)
 			}
 		}
 	},
 
-	set: function(data_id, dicKeyValue, sync)
+	set: function(data_id, dicKeyValue, sync, socket)
 	{
 		sync = def(sync, true)
 		StackMaster.loop(dicKeyValue, function(key, value){
-			this.setSingleProperty(data_id, key, value, sync)
+			this.setSingleProperty(data_id, key, value, sync, socket)
 		}, this)
 
 		return this.values.get(data_id)

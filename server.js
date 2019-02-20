@@ -126,17 +126,18 @@ var GameUpdateController = {
 	{
 		_items.getData().for(function(id, item) {
 			var HIT_ID = HitController.getId(player.id, item.id)
+			var socket = _players.get('socket', null, player.id)
 			if (HitMathHelper.boxCollides(player, item))
 			{
 				HitController.set(HIT_ID, true)
 				_items.set(item.id, {
 					grabbable: true,
-				})
+				}, true, socket)
 			} else {
 				HitController.set(HIT_ID, false)
 				_items.set(item.id, {
 					grabbable: false,
-				})
+				}, true, socket)
 			}
 		}, this)
 	},
