@@ -173,6 +173,7 @@ var StackMaster = {
 		}
 		else
 		{
+			this.dimension(id)
 			callback.call(this, this.name)
 			this.dimension()
 		}
@@ -181,12 +182,12 @@ var StackMaster = {
 	getDimension: function()
 	{
 		if (!this.current_dimension)
-			return this.stack
+			return this.getStack()
 		
-		if (!this.stack.hasOwnProperty(this.current_dimension))
-			this.stack[this.current_dimension] = {}
+		if (!this.getStack().hasOwnProperty(this.current_dimension))
+			this.getStack()[this.current_dimension] = {}
 
-		return this.stack[this.current_dimension]
+		return this.getStack()[this.current_dimension]
 	},
 
 	get: function(id, dimension)
@@ -298,7 +299,13 @@ var ModuleMaster = {
 	values: [],
 
 	init: function(propertiesList){
-		this.values = Object.create(StackMaster)
+		this.values = Object.assign({}, StackMaster, {
+			stack: [],
+			getStack: function()
+			{
+				return this.stack
+			}
+		})
 		this.values.name = 'Module Master Values Stack'
 
 		StackMaster.loop(propertiesList, function(i, property){
@@ -374,10 +381,9 @@ var ModuleMaster = {
 
 	set: function(value_id, dicKeyValue)
 	{
-		console.log('MODULE attempt to set', 'hello')
-		this.values.dimension(value_id, function(a){
-			this.set('hello', 1)
-		})
+		StackMaster.loop(dicKeyValue, function(key, value){
+			this.setSingleProperty(value_id, key, value)
+		}, this)
 	},
 
 	syncProperty: function (id)
@@ -386,8 +392,13 @@ var ModuleMaster = {
 	},
 }
 
-var StackModuleMaster = Object.create(StackMaster)
-StackModuleMaster = Object.assign(StackModuleMaster, {
+var StackModuleMaster = Object.assign({}, StackMaster, {
+	stack: [],
+	getStack: function()
+	{
+		return this.stack
+	},
+
 	name: 'Stack Module Master',
 
 	create: function(id, properties) {
@@ -408,13 +419,6 @@ StackModuleMaster.create('players_module', [
 	])
 var players = StackModuleMaster.get('players_module')
 
-/*
-StackModuleMaster [stack]
-	-> PlayersModule [module]
-		-> values_ids [stack]
-			-> properties
-*/
-
 players.set('X0001', {
 	X: 998,
 	Y: 666,
@@ -422,3 +426,4 @@ players.set('X0001', {
 })
 
 console.log('MODULES:', Object.keys(StackModuleMaster.get()))
+console.log('VALUES:', players.values.get())
