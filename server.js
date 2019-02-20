@@ -24,7 +24,14 @@ var _players = master.create('players', [
 		new Property('socket', 0),
 	])
 
-_players.getSocket = function(){
+var _items = master.create('items', [
+		new Property('id', 0),
+		new Property('X', 0, true),
+		new Property('Y', 0, true),
+	])
+
+// todo fix this
+_players.getSocket = _items.getSocket = function(){
 	return io
 }
 
@@ -33,14 +40,6 @@ _players.getSocket = function(){
 
 io.on('connection', (socket) => {
 	var player = PlayersController.newPlayer(socket)
-	
-	socket.on('playerMove', (id, point) => {
-		PlayersController.move(id, point)
-	});
-	
-	socket.on('shootClick', (id, x, y, mouse_x, mouse_y, weapon_id) => {
-		socket.broadcast.emit('shootDraw', id, x, y, mouse_x, mouse_y, weapon_id)
-	});
 	
 	socket.on('sync', (data) => {
 		var module = master.get(data.module_id)
@@ -58,9 +57,28 @@ io.on('connection', (socket) => {
 
 
 
-var PlayersController = {
+var ItemsController = {
+	new: function(id, point)
+	{
+		_items.set(id, point)
+	},
 
-	stack: [],
+	generate: function()
+	{
+		this.new('weapon.shotgun', {X: 100, Y: 100})
+	},
+}
+
+ItemsController.generate()
+console.log('Items Generated', Object.keys(_items.get()))
+
+
+
+
+
+
+
+var PlayersController = {
 
 	newPlayer: function(socket)
 	{

@@ -2338,6 +2338,12 @@ var _players = StackModuleMaster.create('players', [
 		new Property('Y', 0, true)
 	])
 
+var _items = StackModuleMaster.create('items', [
+		new Property('id', 0),
+		new Property('X', 0, true),
+		new Property('Y', 0, true),
+	])
+
 _players.getSocket = function(id){
 	return Socket.io
 }
