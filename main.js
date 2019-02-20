@@ -1171,7 +1171,7 @@ var ItemController = {
 				if (item.grabbable)
 				{
 					_items.set(item.id, {
-						grabbed_by: PlayerController.id
+						grabbed_by: true
 					})
 				}
 			}, this)

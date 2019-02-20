@@ -182,7 +182,12 @@ var ItemsController = {
 
 	grabAttempt: function (socket, model)
 	{
+		var HIT_ID = HitController.getId(socket.id, model.data_id)
 		console.log(socket.id,'grab attempt', model.data_id)
+		if (HitController.get(HIT_ID))
+		{
+			_items.remove(model.data_id)
+		}
 		return false
 	}
 }
