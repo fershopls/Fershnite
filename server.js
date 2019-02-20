@@ -22,14 +22,38 @@ var _players = master.create('players', [
 		new Property('socket', 0),
 	])
 
-var sync = function (module_id, value_id, id)
-{
-	var player = _players.get(value_id)
-	player.socket.broadcast.emit('sync', module_id, value_id, id, player[id]);
-	
-	console.log(module_id, value_id, id, player[id])
+_players.clientSide = false
+_players.getSocket = function(module_id, value_id){
+	player = _players.get(value_id)
+	if (player)
+	{
+		return player.socket
+	}
 }
-_players.sync = sync
+
+
+
+
+io.on('connection', (socket) => {
+	var player = PlayersController.newPlayer(socket)
+	
+	socket.on('playerMove', (id, point) => {
+		PlayersController.move(id, point)
+	});
+	
+	socket.on('shootClick', (id, x, y, mouse_x, mouse_y, weapon_id) => {
+		socket.broadcast.emit('shootDraw', id, x, y, mouse_x, mouse_y, weapon_id)
+	});
+	
+	socket.on('sync', (module_id, value_id, id, value) => {
+		master.sync(module_id, value_id, id, value)
+	});
+});
+
+
+
+
+
 
 
 
@@ -53,7 +77,7 @@ var PlayersController = {
 		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', id)
 		// Send ID to player
 		socket.emit('id', id, point)
-		socket.emit('players', this.getPlayersPoints())
+		_players.syncModule()
 		// Send player to other players
 		socket.broadcast.emit('enemy', id, point);
 		console.log('[PLAYER][LEN]', Object.keys(_players.get()).length)
@@ -97,23 +121,6 @@ var PlayersController = {
 
 }
 
-
-
-
-
-
-
-io.on('connection', (socket) => {
-	var player = PlayersController.newPlayer(socket)
-	
-	socket.on('playerMove', (id, point) => {
-		PlayersController.move(id, point)
-	});
-	
-	socket.on('shootClick', (id, x, y, mouse_x, mouse_y, weapon_id) => {
-		socket.broadcast.emit('shootDraw', id, x, y, mouse_x, mouse_y, weapon_id)
-	});
-});
 
 
 

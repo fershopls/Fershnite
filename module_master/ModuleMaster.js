@@ -85,31 +85,87 @@ var ModuleMaster = {
 		return this.values.removeById(value_id)
 	},
 
-	setSingleProperty: function (value_id, key, value, without_sync)
+	setSingleProperty: function (value_id, key, value, not_syncronize, syncronizing)
 	{
 		var property = this.getProperty(key)
+		if (this.get(value_id, key) == value)
+			return false
+
 		if (property)
 		{
+			if (syncronizing && !property.allow_sync)
+				return false
+
 			this.values.dimension(value_id, function (){
 				this.set(key, value)
 			})
-			if (property.allow_sync && !without_sync)
+
+			if (property.allow_sync && !not_syncronize)
 				this.sync(this.id, value_id, property.id)
 		}
 	},
 
-	set: function(value_id, dicKeyValue, without_sync)
+	set: function(value_id, dicKeyValue, not_syncronize, syncronizing)
 	{
 		StackMaster.loop(dicKeyValue, function(key, value){
-			this.setSingleProperty(value_id, key, value, without_sync)
+			this.setSingleProperty(value_id, key, value, not_syncronize, syncronizing)
 		}, this)
 
 		return this.values.get(value_id)
 	},
 
-	sync: function (module_id, value_id, id)
+	setSync: function (value_id, data)
 	{
+		this.set (value_id, data)
+	},
+
+	syncModule: function()
+	{
+		this.get()
+	},
+
+	syncValueId: function (value_id)
+	{
+		var items = this.values.get(value_id)
+		StackMaster.loop(items, function(key)
+		{
+			var property = this.getProperty(key)
+			if (property.allow_sync)
+				this.sync.call(this, this.id, value_id, key)
+		}, this)
+	},
+
+	sync: function (module_id, value_id, id, sender)
+	{
+		var value = this.get(value_id)
+		if (value)
+		{
+			var socket = this.getSocket(module_id, value_id, id)
+			if (socket)
+			{
+				if (this.clientSide)
+					socket.emit('sync', module_id, value_id, id, value[id])
+				else
+					socket.broadcast.emit('sync', module_id, value_id, id, value[id])
+			}
+			else
+			{
+				console.log('[!] Missing socket')
+			}
+		}
 		//console.log(module_id,value_id,'property',id,'change', this.get(value_id, id))
+	},
+
+	clientSide: true,
+
+	getSocket: function()
+	{
+		return 'Please override this function'
+	},
+
+	getId: function()
+	{
+		return undefined
 	},
 }
 

@@ -953,60 +953,6 @@ function Entity (settings)
 }
 
 
-/*=========================================
-=            #DRAW ENTITY                 =
-===========================================*/
-var DrawEntity = {
-	defaultSettings: {
-			alias: null,
-			X: 220,
-			Y: 270,
-			scaleX: 1,
-			scaleY: 1,
-			width: 32,
-			height: 32,
-			drawX: 0,
-			drawY: 0,
-			color: "#00A",
-			sprite: new SpriteSheet(),
-
-			center: function(){
-				return {
-			  		X: this.X + this.width/2,
-			  		Y: this.Y + this.height/2,
-			  	}
-			  },
-		},
-  	
-  	draw: function (ctx, settings)
-  	{
-  		var draw = Object.assign({}, this.defaultSettings, settings)
-  		
-  		if (draw.sprite.get())
-  		{
-	  		ctx.save();
-		    ctx.translate(draw.X + draw.drawX, draw.Y + draw.drawY);
-		    ctx.scale(draw.scaleX, draw.scaleY)
-		    draw.sprite.get().render(ctx)
-		    ctx.restore()
-  		} else {
-	  		ctx.fillStyle = draw.color;
-		    ctx.fillRect(draw.X, draw.Y, draw.width, draw.height);
-		    TextController.create({X: draw.center().X, Y: draw.center().Y, text: draw.alias, align:'center'})
-  		}
-
-	    if (Core.debug)
-	    {
-	    	ctx.strokeStyle = draw.color;
-	    	ctx.strokeRect(draw.X, draw.Y, draw.width, draw.height);
-	    	var text = draw.id?draw.id:draw.alias
-		    TextController.create({size:11, font:'Arial', X: draw.center().X, Y: draw.Y + draw.height, text: text, align:'center'})
-	    }
-  	}
-}
-
-
-
 /*==========================================================================================
 =            #ITEM CLASS                       =============================================
 ==========================================================================================*/
@@ -1577,8 +1523,7 @@ var WeaponController = {
 
 
 var PlayerController = {
-  id: null,
-  sprite: null,
+  entity: null,
   movement: {
   	x_speed: 0, // current speed
   	y_speed: 0,
@@ -1590,21 +1535,17 @@ var PlayerController = {
   
   setId: function(id, point)
   {
-  	this.id = id
-  	
-  	_players.set(id,{
-  		X: point.X,
-  		Y: point.Y,
-  	}, true)
-
+  	this.entity.id = id
+  	this.entity.X = point.X
+  	this.entity.Y = point.Y
   	if (Core.io_debug)
-  		console.log('Player.ID', id, 'AT', point)
+  		console.log('ID', id, 'POINT', point)
   },
 
   loadOtherPlayers: function(players)
   {
 	if (Core.io_debug)
-		console.log('Player.LoadOtherPlayers', Object.keys(players).length)
+		console.log('LOADING PLAYERS', Object.keys(players).length)
 	
 	for (id in players)
 	{
@@ -1621,7 +1562,7 @@ var PlayerController = {
   init: function ()
   {
   	// url, pos, size, speed, frames, dir, once
-  	this.sprite = new SpriteSheet(['stand', 'walk'], 'player')
+  	var sprite = new SpriteSheet(['stand', 'walk'], 'player')
   	this.entity = new Entity({
 		X: 220,
 		Y: 270,
@@ -1629,7 +1570,7 @@ var PlayerController = {
 		width: 32,
 		height: 32,
 		color: '#00A',
-		sprite: this.sprite
+		sprite: sprite
   	})
 	this.entity.sprite.set('stand')
   },
@@ -1660,6 +1601,8 @@ var PlayerController = {
     if (Math.abs(this.movement.y_speed) > this.movement.max_speed)
     	this.movement.y_speed = this.movement.max_speed * this.movement.y_speed/Math.abs(this.movement.y_speed)
 
+    this.entity.Y += this.movement.y_speed
+
 
 
 
@@ -1686,12 +1629,7 @@ var PlayerController = {
 	if (Math.abs(this.movement.x_speed) > this.movement.max_speed)
     	this.movement.x_speed = this.movement.max_speed * this.movement.x_speed/Math.abs(this.movement.x_speed)
     
-    var player = _players.get(this.id)
-    if (player)
-	    _players.set(this.id, {
-	    	X: player.X+this.movement.x_speed,
-	    	Y: player.Y+this.movement.y_speed,
-	    })
+    this.entity.X += this.movement.x_speed
 
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
@@ -1726,11 +1664,11 @@ var PlayerController = {
     }
 
     if (this.movement.x_speed != 0 || this.movement.y_speed != 0)
-    	this.sprite.set('walk')
+    	this.entity.sprite.set('walk')
     else
-    	this.sprite.set('stand')
+    	this.entity.sprite.set('stand')
 	
-    this.sprite.get().update(dt);
+    this.entity.sprite.get().update(dt);
 
 
 	this.dontFallOut(dt);
@@ -1754,27 +1692,9 @@ var PlayerController = {
 		Socket.io.emit('playerMove', this.entity.id, this.entity.getPoint())
   	}
   },
-  
-
-  getDrawEntityModel: function(player) {
-  		return {
-			X: player.X,
-			Y: player.Y,
-			alias: 'player',
-			width: 32,
-			height: 32,
-			color: '#00A',
-			sprite: this.sprite
-	  	}
-	},
 
   draw: function(ctx) {
-  	// this.entity.draw(ctx)
-  	var players = _players.get()
-  	
-  	StackMaster.loop(players, function(id, player){
-		DrawEntity.draw(ctx, this.getDrawEntityModel(player))
-  	}, this)
+  	this.entity.draw(ctx)
   },
 
   updateAllowItemGrabbable: function()
@@ -2332,20 +2252,25 @@ var Socket = {
 			var module = StackModuleMaster.get(module_id)
 			data = {}
 			data[id] = value
-			module.set(value_id, data, true, true)
-			// console.log('PULL', module_id, value_id, id, value)
+			module.set(value_id, data)
+			console.log(module.get(value_id))
 		})
 	}
 }
 var _players = StackModuleMaster.create('players', [
-		new Property('X', 0, true),
-		new Property('Y', 0, true)
+		new Property('X', 0),
+		new Property('Y', 0)
 	])
+var sync = function (module_id, value_id, id)
+{
+	var player = _players.get(value_id)
+	if (player)
+	{
+		player.socket.broadcast.emit('sync', module_id, value_id, id, player[id]);
+		console.log(module_id, value_id, id, player[id])
+	}
+}
+_players.sync = sync
+console.log('MODULES:', Object.keys(StackModuleMaster.get()))
 
-_players.getSocket = function(module_id, value_id){
-	return Socket.io
-}
-_players.getId = function(module_id, value_id){
-	return PlayerController.id
-}
 

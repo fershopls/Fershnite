@@ -23,6 +23,14 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 	{
 		var module = Object.assign({}, ModuleMaster, {id:id})
 		return module.init(properties)
+	},
+
+	sync: function (module_id, value_id, id, value)
+	{
+		var module = this.get(module_id)
+		data = {}
+		data[id] = value
+		module.setSync(value_id, data)
 	}
 })
 
