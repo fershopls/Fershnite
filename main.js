@@ -1156,11 +1156,26 @@ var ItemController = {
 
 	update: function(dt)
 	{
-		// Update Key
+		var items = _items.get()
+		
 		if (!input.isDown('e'))
+		{
 			this.grab.lastKeyWasDown = false
+		}
+		
+		if (this.isGrabbingItem())
+			StackMaster.loop(items, function(id, item){
+				// TODO fix invisible sprite
+				// this.getSpritesheet(id).get().update()
+			
+				if (item.grabbable)
+				{
+					_items.set(item.id, {
+						grabbed_by: PlayerController.id
+					})
+				}
+			}, this)
 
-		// this.sprite.get().update()	
 	},
 
 	spritesheets: {},
@@ -1210,7 +1225,7 @@ var ItemController = {
 		var item = this.getDrawEntityModel(item);
 		var Y = item.Y + item.height
 		var X = item.X + item.width/2
-		
+
 		var text = this.getItemAlias(item)
 		TextController.create({size:18, text: text, X: X, Y: Y+15, align: 'center'})
 		TextController.create({size: 12, text: 'PRESS E TO GRAB', X: X, Y: Y+35, align: 'center'})
@@ -2329,6 +2344,7 @@ var Socket = {
 var registerModules = (function(){
 	StackModuleMaster.clientSide = true;
 
+	// TODO CLEAR PROPERTIES GET FROM SERVER
 	_players = StackModuleMaster.create('players', [
 			new Property('id', 0),
 			new Property('X', 0, true),
@@ -2340,9 +2356,10 @@ var registerModules = (function(){
 			new Property('X', 0, true),
 			new Property('Y', 0, true),
 			new Property('grabbable', false, true),
+			new Property('grabbed_by', null, true),
 		])
 
-	_players.getSocket = function(id){
+	_players.getSocket = _items.getSocket = function(id){
 		return Socket.io
 	}
 })

@@ -156,7 +156,7 @@ var ModuleMaster = {
 		}
 		else
 		{
-			this.syncInputServer(data)
+			this.syncInputServer(data, socket)
 		}
 	},
 
@@ -172,15 +172,23 @@ var ModuleMaster = {
 		if (model.model_id == 'updateSingleProperty')
 		{
 			var property = this.getProperty(model.key)
-			if (property.broadcastable)
+
+			var propertyUpdateValidationPass = true
+			if (typeof property.updateValidator == 'function')
 			{
-				socket = socket
-			} else {
-				var socket = undefined
+				var propertyUpdateValidationPass = property.updateValidator.call(this, socket, model)
 			}
-			if (true || isClientEditable)
+
+			if (property.broadcastable)
+				var sync_socket = socket
+			else
+				var sync_socket = undefined
+
+			// TODO check if property.allow_client_edit == true
+			if (propertyUpdateValidationPass)
 			{
-				this.syncOutput(model, socket)
+				
+				this.syncOutput(model, sync_socket)
 				var dict = {}
 				dict[model.key] = model.value
 				this.set(model.data_id, dict, false)
@@ -217,6 +225,7 @@ var ModuleMaster = {
 	syncOutput: function(model, socket)
 	{
 		var socket = def(socket, this.getSocketSafe())
+		
 		if (this.clientSide)
 		{
 			this.clientOutput(model, socket)
@@ -277,7 +286,7 @@ var ModuleMaster = {
 	getSocketSafe: function ()
 	{
 		var socket = this.getSocket()
-		if (socket)
+		if (typeof this.getSocket == 'function' && socket)
 		{
 			return socket
 		}
@@ -294,7 +303,7 @@ var ModuleMaster = {
 
 	getSocket: function()
 	{
-		return 'Please override this function'
+		return 'Please override getSocket function in server/client both sides'
 	},
 
 }

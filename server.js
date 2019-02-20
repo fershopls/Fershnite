@@ -27,11 +27,17 @@ var _players = master.create('players', [
 		new Property('socket', 0)
 	])
 
+var checkGrabbedBy = function(socket, model)
+{
+	ItemsController.grabAttempt.call(ItemsController, socket, model)
+}
+
 var _items = master.create('items', [
 		new Property('id', null),
 		new Property('X', 0, true),
 		new Property('Y', 0, true),
 		new Property('grabbable', false, true),
+		new Property('grabbed_by', null, true, false, checkGrabbedBy),
 		new Property('width', 48),
 		new Property('height', 32),
 	])
@@ -173,6 +179,12 @@ var ItemsController = {
 		this.new('weapon.rifle', {X: Math.random()*500, Y: 200})
 		this.new('weapon.smg', {X: Math.random()*500, Y: 300})
 	},
+
+	grabAttempt: function (socket, model)
+	{
+		console.log(socket.id,'grab attempt', model.data_id)
+		return false
+	}
 }
 
 ItemsController.generate()
