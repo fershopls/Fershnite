@@ -99,7 +99,10 @@ var PlayersController = {
 		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', player.id)
 		
 		// Send current online players
-		this.sendPlayersPointsTo(socket)
+		_players.syncBulkDataToSocket(player.socket, function (data){
+			return {X: data.X, Y: data.Y}
+		})
+		_items.syncBulkDataToSocket(player.socket)
 		console.log('[=][PLAYER] Online players sended ->', player.id)
 		
 		console.log('[i][PLAYER][LEN]', Object.keys(_players.get()).length)
@@ -113,19 +116,9 @@ var PlayersController = {
 		return {X: player.X, Y: player.Y}
 	},
 
-	sendPlayersPointsTo: function(socket)
+	getPlayerSocket: function (player_id)
 	{
-		_players.getData().for(function(id, player){
-			if (this.checkSocketConnection(player))
-			{
-				var model = ModelMaster.new('updateDataIdProperties', {
-					'module_id': 'players',
-					'data_id': id,
-					'data': this.getPoint(player),
-				})
-				_players.syncOutput(model, socket)
-			}
-		}, this)
+		// return _players.get(player_id).socket
 	},
 
 	checkAllPlayerSocketConnection: function ()

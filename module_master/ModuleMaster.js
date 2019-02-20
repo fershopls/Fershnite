@@ -184,7 +184,7 @@ var ModuleMaster = {
 		if (model.model_id == 'updateDataIdProperties')
 		{
 			this.set(model.data_id, model.data, false)
-			console.log('[=] PLAYER', model.data_id)
+			console.log('[=] UPDATE DATA ', model.module_id, model.data_id)
 		}
 
 		if (model.model_id == 'removeDataId')
@@ -227,6 +227,22 @@ var ModuleMaster = {
 			socket.emit('sync', model)
 		}
 		
+	},
+
+	syncBulkDataToSocket: function (socket, data_callback)
+	{
+		this.getData().for(function(id, data){
+			// TODO replace data_callback with Model Class .getSincronizableRules()
+			if (typeof data_callback == 'function')
+				var data = data_callback.call(this, data)
+
+			var model = ModelMaster.new('updateDataIdProperties', {
+				'module_id': this.id,
+				'data_id': id,
+				'data': data,
+			})
+			this.syncOutput(model, socket)
+		}, this)
 	},
 
 	clientOutput: function(model, socket)
