@@ -6,6 +6,8 @@ if (typeof module != 'undefined') {
 
 var StackModuleMaster = Object.assign({}, StackMaster, {
 	stack: [],
+	clientSide: false,
+
 	getStack: function()
 	{
 		return this.stack
@@ -21,7 +23,7 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 
 	initModule: function (id, properties)
 	{
-		var module = Object.assign({}, ModuleMaster, {id:id})
+		var module = Object.assign({}, ModuleMaster, {id:id, clientSide: this.clientSide})
 		return module.init(properties)
 	},
 

@@ -22,9 +22,8 @@ var _players = master.create('players', [
 		new Property('socket', 0),
 	])
 
-_players.clientSide = false
-_players.getSocket = function(module_id, value_id){
-	player = _players.get(value_id)
+_players.getSocket = function(id){
+	player = _players.get(id)
 	if (player)
 	{
 		return player.socket
@@ -45,8 +44,10 @@ io.on('connection', (socket) => {
 		socket.broadcast.emit('shootDraw', id, x, y, mouse_x, mouse_y, weapon_id)
 	});
 	
-	socket.on('sync', (module_id, value_id, id, value) => {
-		master.sync(module_id, value_id, id, value)
+	socket.on('sync', (data) => {
+		var module = master.get(data.module_id)
+		if (module)
+		module.syncInput(data)
 	});
 });
 

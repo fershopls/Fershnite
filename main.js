@@ -1595,7 +1595,7 @@ var PlayerController = {
   	_players.set(id,{
   		X: point.X,
   		Y: point.Y,
-  	}, true)
+  	}, false)
 
   	if (Core.io_debug)
   		console.log('Player.ID', id, 'AT', point)
@@ -1688,10 +1688,14 @@ var PlayerController = {
     
     var player = _players.get(this.id)
     if (player)
-	    _players.set(this.id, {
+    {
+    	var point = {
 	    	X: player.X+this.movement.x_speed,
 	    	Y: player.Y+this.movement.y_speed,
-	    })
+	    }
+	    var diff = this.isPointsDifference(point)
+	    _players.set(this.id, point, diff)
+    }
 
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
@@ -1736,23 +1740,26 @@ var PlayerController = {
 	this.dontFallOut(dt);
   	
   	this.updateAllowItemGrabbable()
+  },
 
-  	this.socketSendMove()
+  getPoint: function(data)
+  {
+  	// TODO FIX controllers init before Modules ready
+  	if (data)
+  		return {X: data.X, Y: data.Y}
+  	else return {X: 0, Y: 0}
   },
 
   capturedPoint: {},
   captureCurrentPoint: function ()
   {
-	this.capturedPoint = this.entity.getPoint()
+	this.capturedPoint = this.getPoint(_players.get(this.id))
   },
 
-  socketSendMove: function()
+  isPointsDifference: function(point)
   {
-  	if (this.capturedPoint.X != this.entity.getPoint().X
-		|| this.capturedPoint.Y != this.entity.getPoint().Y)
-  	{
-		Socket.io.emit('playerMove', this.entity.id, this.entity.getPoint())
-  	}
+  	return this.capturedPoint.X != point.X
+		|| this.capturedPoint.Y != point.Y
   },
   
 
@@ -2328,24 +2335,55 @@ var Socket = {
 		})
 		this.io.on('shootDraw', ShootController.socketShootDraw)
 
-		this.io.on('sync', function(module_id, value_id, id, value) {
-			var module = StackModuleMaster.get(module_id)
-			data = {}
-			data[id] = value
-			module.set(value_id, data, true, true)
+		this.io.on('sync', function(data) {
+			var module = StackModuleMaster.get(data.module_id)
+			if (module)
+				module.syncInput(data)
 			// console.log('PULL', module_id, value_id, id, value)
 		})
 	}
 }
+StackModuleMaster.clientSide = true;
+
 var _players = StackModuleMaster.create('players', [
 		new Property('X', 0, true),
 		new Property('Y', 0, true)
 	])
 
-_players.getSocket = function(module_id, value_id){
+_players.getSocket = function(id){
 	return Socket.io
 }
-_players.getId = function(module_id, value_id){
-	return PlayerController.id
-}
 
+
+
+/*
+#CLIENT
+	-> Input
+		-> Route to ModuleMaster.Input
+	-> Output
+		-> ModuleMaster.sync (module_id, value_id, id)
+#SERVER
+	-> Input
+		-> socket.on('sync')
+			-> master.sync(module_id, value_id, id, value)
+	-> Output
+		-> ModuleMaster.sync (module_id, value_id, id)
+
+#################
+###### NOW ######
+#################
+
+#CLIENT
+	-> Input
+		-> this.io.on('sync')
+	-> Output
+		-> ModuleMaster.sync (module_id, value_id, id)
+#SERVER
+	-> Input
+		-> socket.on('sync')
+			-> master.sync(module_id, value_id, id, value)
+	-> Output
+		-> ModuleMaster.sync (module_id, value_id, id)
+
+
+*/
