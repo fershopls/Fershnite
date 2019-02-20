@@ -1584,7 +1584,10 @@ var PlayerController = {
 
   getEnemies: function ()
   {
-  	return _players.get().splice(this.id, 1)
+  	// todo remove player id from list
+  	var enemies = Object.assign({}, _players.get())
+  	delete enemies[this.id]
+  	return enemies
   },
   
   init: function ()
@@ -1710,6 +1713,18 @@ var PlayerController = {
   	this.updateAllowItemGrabbable()
   },
 
+  width:32,
+  height:32,
+  getPoints: function (shape)
+  {
+		return [
+			{X: shape.X, Y: shape.Y},
+			{X: shape.X, Y: shape.Y + this.height},
+			{X: shape.X + this.width, Y: shape.Y +  this.height},
+			{X: shape.X + this.width, Y: shape.Y},
+		];
+  },
+
   getPoint: function(data)
   {
   	// TODO FIX controllers init before Modules ready
@@ -1734,14 +1749,21 @@ var PlayerController = {
   {
 	return this.getDrawEntityModel(this.id, _players.get(this.id))
   },
+  
+  center: function(item) {
+	return {
+		X: item.X + this.width/2,
+		Y: item.Y + this.height/2,
+	}
+  },
 
   getDrawEntityModel: function(id, player) {
   		var drawEntityModel = {
 			X: player.X,
 			Y: player.Y,
 			id: id,
-			width: 32,
-			height: 32,
+			width: this.width,
+			height: this.height,
 			color: '#00A',
 			sprite: this.sprite,
 			center: function() {
@@ -1839,6 +1861,7 @@ var HitController = {
 	{
 		var enemies = PlayerController.getEnemies()
 		var hit = false
+		// todo replace for loop
 		for (id in enemies)
 		{
 			if (!enemies.hasOwnProperty(id))
@@ -1850,7 +1873,7 @@ var HitController = {
 
 	checkLinesEnemyHit: function (lines, enemy)
 	{
-		var shapePoints = enemy.entity.getPoints()
+		var shapePoints = PlayerController.getPoints(enemy)
 		
 		for (id in lines)
 		{
@@ -1870,48 +1893,25 @@ var HitController = {
 	checkBulletsHit: function(bullets)
 	{
 		this.checkBulletsEnemiesHit(bullets)
-		this.checkBulletsPlayerHit(bullets)
-	},
-
-	checkBulletsPlayerHit: function (bullets)
-	{
-		var id = PlayerController.entity.id
-		var shapePoints = PlayerController.entity.getPoints()
-		var inflictedDamage = this.getInflictedDamageBulletsShapePointsHit(bullets, shapePoints, id)
-		
-		if (inflictedDamage)
-		{
-			var first_bullet = Object.keys(bullets)[0]
-			var shooter_id = bullets[first_bullet].shooter_id
-			var shootLength = this.getShootLength(EnemyController.get(shooter_id))
-			
-			ShootController.killBullets(bullets)
-			var player = PlayerController
-
-			// Take Damage
-			var totalDamage = UIController.damage(inflictedDamage);
-			if (totalDamage.shield > 0)
-				itHadShield = true
-			else
-				itHadShield = false
-			HitTextController.create(player.entity.center().X, player.entity.center().Y, inflictedDamage, true)
-		}
 	},
 
 	checkBulletsEnemiesHit: function(bullets)
 	{
-		var enemies = EnemyController.getStack()
+		var enemies = PlayerController.getEnemies()
 		var enemyTarget = {
-			length: 10**9,
-			enemy: null,
+			length: 10**9, // help calc shoot len
 			damage: 0,
+			enemy: null,
 		}
+		// Todo replace for loop
 		for (id in enemies)
 		{
 			if (!enemies.hasOwnProperty(id))
 				continue
+
 			var enemy = enemies[id]
-			var posibleInflictedDamage = this.getInflictedDamageBulletsShapePointsHit(bullets, enemy.entity.getPoints(), enemy.entity.id)
+			var points = PlayerController.getPoints(enemy)
+			var posibleInflictedDamage = this.getInflictedDamageBulletsShapePointsHit(bullets, points, enemy.id)
 
 			if (posibleInflictedDamage)
 			{
@@ -1930,7 +1930,10 @@ var HitController = {
 		{
 			// TODO this should not work but it works wtf
 			ShootController.killBullets(bullets)
-			enemyTarget.enemy.getHitted(enemyTarget.damage, shoot.weapon.id)
+			// var enemy = PlayerController.getDrawEntityModel(enemyTarget.enemy)
+			var enemy = PlayerController.center(enemyTarget.enemy)
+			HitTextController.create(enemy.X, enemy.Y, enemyTarget.damage, true)
+			// enemyTarget.enemy.getHitted(enemyTarget.damage, shoot.weapon.id)
 		}
 	},
 
