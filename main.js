@@ -1163,12 +1163,21 @@ var ItemController = {
 		// this.sprite.get().update()	
 	},
 
-	getDrawEntityModel: function(id, item) {
+	spritesheets: {},
+	getSpritesheet: function (id)
+	{
+		if (!this.spritesheets.hasOwnProperty(id))
+			this.spritesheets[id] = new SpriteSheet([id])
+		
+		return this.spritesheets[id]
+	},
+
+	getDrawEntityModel: function(item) {
 			var drawEntityModel = {
 			X: item.X,
 			Y: item.Y,
 
-			alias: id,
+			alias: item.id,
 			width:48,
 			height:32,
 			drawX: -8,
@@ -1177,7 +1186,7 @@ var ItemController = {
 			scaleY: 0.49,
 			color: 'red',
 			// TODO fix creating a spritesheet everytime
-			sprite: new SpriteSheet([id]),
+			sprite: this.getSpritesheet(id),
 	  	}
 	  	if (id != this.id)
 	  		drawEntityModel.color = 'red'
@@ -1188,8 +1197,29 @@ var ItemController = {
 		var items = _items.get()
 		
 		StackMaster.loop(items, function(id, item){
-			DrawEntity.draw('items', ctx, this.getDrawEntityModel(id, item))
+			DrawEntity.draw('items', ctx, this.getDrawEntityModel(item))
+			
+			if (item.grabbable)
+				this.drawGrabbableText(ctx, item)
+
 		}, this)
+	},
+
+	drawGrabbableText: function (ctx, item)
+	{
+		var item = this.getDrawEntityModel(item);
+		var Y = item.Y + item.height
+		var X = item.X + item.width/2
+		
+		var text = this.getItemAlias(item)
+		TextController.create({size:18, text: text, X: X, Y: Y+15, align: 'center'})
+		TextController.create({size: 12, text: 'PRESS E TO GRAB', X: X, Y: Y+35, align: 'center'})
+		this.grabbable = false
+	},
+
+	getItemAlias: function (item)
+	{
+		return item.alias.toUpperCase()
 	},
 }
 
@@ -2309,6 +2339,7 @@ var registerModules = (function(){
 			new Property('id', 0),
 			new Property('X', 0, true),
 			new Property('Y', 0, true),
+			new Property('grabbable', false, true),
 		])
 
 	_players.getSocket = function(id){

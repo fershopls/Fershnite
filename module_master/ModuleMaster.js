@@ -148,11 +148,11 @@ var ModuleMaster = {
 		return this.values.get(data_id)
 	},
 
-	syncInput: function(data)
+	syncInput: function(data, socket)
 	{
 		if (this.clientSide)
 		{
-			this.syncInputClient(data)
+			this.syncInputClient(data, socket)
 		}
 		else
 		{
@@ -165,7 +165,7 @@ var ModuleMaster = {
 		return ModelMaster.new(data.model_id, data)
 	},
 
-	syncInputServer: function (data)
+	syncInputServer: function (data, socket)
 	{
 		var model = this.syncInputModelize(data)
 
@@ -174,9 +174,7 @@ var ModuleMaster = {
 			var property = this.getProperty(model.key)
 			if (property.broadcastable)
 			{
-				// console.log('BORADCAST',model.key)
-				var socket = this.get('socket', null, model.data_id)
-				socket = socket.broadcast
+				socket = socket
 			} else {
 				var socket = undefined
 			}
@@ -190,7 +188,7 @@ var ModuleMaster = {
 		}
 	},
 
-	syncInputClient: function (data)
+	syncInputClient: function (data, socket)
 	{
 		var model = this.syncInputModelize(data)
 

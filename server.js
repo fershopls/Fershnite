@@ -7,6 +7,7 @@ var master = require('./module_master/StackModuleMaster.js')
 
 var Property = require('./module_master/Property.js')
 var ModelMaster = require('./module_master/ModelMaster.js');
+var StackMaster = require('./module_master/StackMaster.js');
 
 app.use(express.static(__dirname));
 app.use(bodyParser.json());
@@ -30,6 +31,7 @@ var _items = master.create('items', [
 		new Property('id', null),
 		new Property('X', 0, true),
 		new Property('Y', 0, true),
+		new Property('grabbable', false, true),
 		new Property('width', 48),
 		new Property('height', 32),
 	])
@@ -49,7 +51,7 @@ io.on('connection', (socket) => {
 		var module = master.get(data.module_id)
 		if (module)
 		{
-			module.syncInput(data)
+			module.syncInput(data, socket)
 			module.requestGameUpdate()
 		}
 
@@ -65,7 +67,7 @@ io.on('connection', (socket) => {
 
 
 
-var HitController = {
+var HitMathHelper = {
 
 	collides: function (x, y, r, b, x2, y2, r2, b2) {
     	return !(r <= x2 || x > r2 || b <= y2 || y > b2);
@@ -80,12 +82,39 @@ var HitController = {
 
 }
 
+
+
+var HitController = Object.assign({}, StackMaster, {
+	stack: [],
+
+	getStack: function()
+	{
+		return this.stack
+	},
+
+	getId: function (id1, id2)
+	{
+		return id1+'.'+id2
+	}
+
+})
+
+
+
+
+
+
+
+
+
+
 var GameUpdateController = {
 	update: function ()
 	{
 		_players.getData().for(function(id, player){
 			this.updatePlayer(player)
 		}, this)
+		this.updateItems()
 	},
 
 	updatePlayer: function (player)
@@ -95,14 +124,27 @@ var GameUpdateController = {
 
 	checkItemsWithPlayerHit: function (player)
 	{
-		_items.getData().for(function(id, item){
-			if (HitController.boxCollides(player, item))
+		_items.getData().for(function(id, item) {
+			var HIT_ID = HitController.getId(player.id, item.id)
+			if (HitMathHelper.boxCollides(player, item))
 			{
-				console.log(item)
+				HitController.set(HIT_ID, true)
+				_items.set(item.id, {
+					grabbable: true,
+				})
+			} else {
+				HitController.set(HIT_ID, false)
+				_items.set(item.id, {
+					grabbable: false,
+				})
 			}
 		}, this)
 	},
 
+	updateItems: function ()
+	{
+
+	},
 }
 
 
