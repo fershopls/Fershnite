@@ -14,12 +14,14 @@ var ModelMaster = {
 					'key',
 					'value'
 				],
+			'updateDataIdProperties': [
+					'module_id',
+					'data_id',
+					'data'
+				],
 			'removeDataId': [
 					'module_id',
 					'data_id'
-				],
-			'updateEveryPlayerPoint': [
-					'points'
 				],
 		}
 	},

@@ -73,12 +73,13 @@ var PlayersController = {
 				Y: Math.round(300 * Math.random()),
 			})
 		var point = this.getPoint(player)
+		// Turn on sync
 		socket.emit('id', id, point)
 
 		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', id)
 		// Send ID to player
-		// this.sendPlayersPointsTo(id)
-		// console.log('[=][PLAYER]', id, 'Sending player points')
+		this.sendPlayersPointsTo(socket)
+		console.log('[=][PLAYER]', id, 'Sending player points')
 		// Send player to other players
 		socket.broadcast.emit('enemy', id, point);
 		console.log('[PLAYER][LEN]', Object.keys(_players.get()).length)
@@ -92,29 +93,26 @@ var PlayersController = {
 		return {X: player.X, Y: player.Y}
 	},
 
-	getPlayersPoints: function()
+	sendPlayersPointsTo: function(socket)
 	{
-		var player_list = {}
-		var stack = _players.getData().for(function(id, player){
+		_players.getData().for(function(id, player){
 			if (this.checkSocketConnection(player))
-				player_list[id] = this.getPoint(player)
+			{
+				var model = ModelMaster.new('updateDataIdProperties', {
+					'module_id': 'players',
+					'data_id': id,
+					'data': this.getPoint(player),
+				})
+				_players.syncOutput(model, socket)
+			}
 		}, this)
-		return player_list
 	},
 
-	sendPlayersPointsTo: function(id)
+	checkAllPlayerSocketConnection: function ()
 	{
-		var list = this.getPlayersPoints()
-		var model = ModelMaster.new('updateEveryPlayerPoint', {
-			points: list
-		})
-		var socket = this.getPrivateSocket(id)
-		//_players.syncOutput(model, socket)
-	},
-
-	getPrivateSocket: function (id)
-	{
-		_players.getSocketSafe().to(id)
+		_players.getData().for(function(id, player){
+			this.checkSocketConnection(player)
+		}, this)
 	},
 
 	checkSocketConnection: function(player)
@@ -137,6 +135,9 @@ var PlayersController = {
 
 }
 
+setInterval(function(){
+	PlayersController.checkAllPlayerSocketConnection.call(PlayersController)
+}, 1000)
 
 
 

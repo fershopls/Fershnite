@@ -150,7 +150,7 @@ var ModuleMaster = {
 	syncInputServer: function (data)
 	{
 		var model = this.syncInputModelize(data)
-		
+
 		if (model.model_id == 'updateSingleProperty')
 		{
 			var property = this.getProperty(model.key)
@@ -171,6 +171,7 @@ var ModuleMaster = {
 	syncInputClient: function (data)
 	{
 		var model = this.syncInputModelize(data)
+
 		if (model.model_id == 'updateSingleProperty')
 		{
 			// console.log('GET', model.key, model.value)
@@ -179,16 +180,17 @@ var ModuleMaster = {
 			this.set(model.data_id, keyValue, false)
 			// console.log('PRNT', model.data_id, this.get(model.key, null, model.data_id))
 		}
+		
+		if (model.model_id == 'updateDataIdProperties')
+		{
+			this.set(model.data_id, model.data, false)
+			console.log('PLAYER:', model.data_id)
+		}
 
 		if (model.model_id == 'removeDataId')
 		{
 			console.log('Player left', model.data_id)
 			this.remove(model.data_id, false)
-		}
-
-		if (model.model_id == 'updateEveryPlayerPoint')
-		{
-			console.log('Update players points')
 		}
 	},
 
@@ -213,17 +215,18 @@ var ModuleMaster = {
 			socket.emit('sync', model)
 		}
 		
+		if (model.model_id == 'updateDataIdProperties')
+		{
+			// console.log('TC > update', model.data_id, model.key)
+			socket.emit('sync', model)
+		}
+		
 		if (model.model_id == 'removeDataId')
 		{
 			// console.log('TC > remove', model.data_id)
 			socket.emit('sync', model)
 		}
 		
-		if (model.model_id == 'updateEveryPlayerPoint')
-		{
-			// console.log('TC > remove', model.data_id)
-			socket.emit('sync', model)
-		}
 	},
 
 	clientOutput: function(model, socket)
