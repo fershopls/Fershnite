@@ -2262,3 +2262,11 @@ var Socket = {
 		this.io.on('shootDraw', ShootController.socketShootDraw)
 	}
 }
+
+var players = StackModuleMaster.create('players', [
+		new Property('X', 0),
+		new Property('Y', 0)
+	])
+
+console.log('MODULES:', Object.keys(StackModuleMaster.get()))
+console.log('VALUES:', players.values.get())
