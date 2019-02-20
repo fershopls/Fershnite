@@ -18,9 +18,11 @@ app.use(bodyParser.urlencoded({extended: false}))
 
 
 var _players = master.create('players', [
+		new Property('id', null),
 		new Property('X', 0, true, true),
 		new Property('Y', 0, true, true),
-		new Property('id', 0),
+		new Property('width', 32),
+		new Property('height', 32),
 		new Property('socket', 0),
 	])
 
@@ -28,6 +30,8 @@ var _items = master.create('items', [
 		new Property('id', 0),
 		new Property('X', 0, true),
 		new Property('Y', 0, true),
+		new Property('width', 48),
+		new Property('height', 32),
 	])
 
 // todo fix this
@@ -44,9 +48,62 @@ io.on('connection', (socket) => {
 	socket.on('sync', (data) => {
 		var module = master.get(data.module_id)
 		if (module)
-		module.syncInput(data)
+		{
+			module.syncInput(data)
+			module.requestGameUpdate()
+		}
+
+		GameUpdateController.update()
 	});
 });
+
+
+
+
+
+
+
+
+
+var HitController = {
+
+	collides: function (x, y, r, b, x2, y2, r2, b2) {
+    	return !(r <= x2 || x > r2 || b <= y2 || y > b2);
+	},
+
+	boxCollides: function (point_a, point_b) {
+    	return this.collides(point_a.X, point_a.Y,
+            point_a.X + point_a.width, point_a.Y + point_a.height,
+            point_b.X, point_b.Y,
+            point_b.X + point_b.width, point_b.Y + point_b.height);
+	},
+
+}
+
+var GameUpdateController = {
+	update: function ()
+	{
+		_players.getData().for(function(id, player){
+			this.updatePlayer(player)
+		}, this)
+	},
+
+	updatePlayer: function (player)
+	{
+		this.checkItemsWithPlayerHit(player)
+	},
+
+	checkItemsWithPlayerHit: function (player)
+	{
+		_items.getData().for(function(id, item){
+			if (HitController.boxCollides(player, item))
+			{
+				console.log('yes')
+			}
+		}, this)
+	},
+
+}
 
 
 
@@ -60,7 +117,7 @@ io.on('connection', (socket) => {
 var ItemsController = {
 	new: function(id, point)
 	{
-		_items.set(id, point)
+		_items.create(id, point)
 	},
 
 	generate: function()
@@ -88,16 +145,17 @@ var PlayersController = {
 		socket.emit('id', socket.id)
 		
 		// Sign In on Server
-		var player = _players.set(socket.id, {
+		var player = _players.create(socket.id, {
 				id: socket.id,
 				socket: socket
 			})
-
+		// TODO integrate to create
 		// Set Initial Position
-		_players.set(player.id, {
+		_players.set(socket.id, {
 				X: Math.round(800 * Math.random()),
 				Y: Math.round(300 * Math.random()),
 			})
+
 		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', player.id)
 		
 		// Send current online players

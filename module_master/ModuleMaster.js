@@ -130,6 +130,25 @@ var ModuleMaster = {
 		return this.values.get(data_id)
 	},
 
+	getSynchronizableProperties: function()
+	{
+		// StackMaster.loop(this.properties, function(id, property){
+		// 	console.log(id, property.allow_sync)
+		// }, this)
+	},
+
+	create: function(data_id, initialKeyValue, sync)
+	{
+		sync = def(sync, true)
+		
+		StackMaster.loop(this.properties, function(id, property){
+			var value = def(initialKeyValue[id], property.default_value)
+			this.setSingleProperty(data_id, id, value, sync)
+		}, this)
+
+		return this.values.get(data_id)
+	},
+
 	syncInput: function(data)
 	{
 		if (this.clientSide)
@@ -162,9 +181,13 @@ var ModuleMaster = {
 			} else {
 				var socket = undefined
 			}
-			// console.log('SERVER INPUT FROM CLIENT', data)
-			this.syncOutput(model, socket)
-			// console.log('input server side', model)
+			if (true || isClientEditable)
+			{
+				this.syncOutput(model, socket)
+				var dict = {}
+				dict[model.key] = model.value
+				this.set(model.data_id, dict, false)
+			}
 		}
 	},
 
@@ -265,6 +288,11 @@ var ModuleMaster = {
 		{
 			console.log('[!] Missing socket', (this.clientSide)?'client':'server')
 		}
+	},
+
+	requestGameUpdate: function()
+	{
+		return 'please override this function'
 	},
 
 	getSocket: function()
