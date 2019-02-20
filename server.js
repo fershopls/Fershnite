@@ -42,8 +42,14 @@ var _items = master.create('items', [
 		new Property('height', 32),
 	])
 
+var _inventory = master.create('inventory', [
+		new Property('id', null),
+		new Property('items', {}, true),
+		new Property('current', null, true),
+	])
+
 // todo fix this
-_players.getSocket = _items.getSocket = function(){
+_players.getSocket = _inventory.getSocket = _items.getSocket = function(){
 	return io
 }
 
@@ -183,9 +189,11 @@ var ItemsController = {
 	grabAttempt: function (socket, model)
 	{
 		var HIT_ID = HitController.getId(socket.id, model.data_id)
-		console.log(socket.id,'grab attempt', model.data_id)
 		if (HitController.get(HIT_ID))
 		{
+			console.log(socket.id,'grab', model.data_id)
+			InventoryController.set(socket.id, model.data_id, 1)
+			InventoryController.setCurrentWeapon(socket.id, model.data_id)
 			_items.remove(model.data_id)
 		}
 		return false
@@ -194,6 +202,64 @@ var ItemsController = {
 
 ItemsController.generate()
 console.log('Items Generated', Object.keys(_items.get()))
+
+
+
+
+var InventoryController = {
+	
+	set: function (player_id, item_id, qty)
+	{
+		playerInventory = this.get(player_id)
+		playerInventory.items[item_id] = qty
+		_inventory.set(player_id, playerInventory)
+	},
+
+	get: function (player_id)
+	{
+		if (!_inventory.get(player_id, false))
+			_inventory.create(player_id, {})
+		return _inventory.get(player_id)
+	},
+
+	setCurrentWeapon: function (player_id, item_id)
+	{
+		item_id = item_id.split('weapon.').join('')
+		playerInventory = this.get(player_id)
+		playerInventory.current = item_id
+		_inventory.set(player_id, playerInventory)
+	},
+
+	getNextStackItem: function(stack_id, item_id)
+	{
+		var keys = Object.keys(this.getStack(stack_id));
+		var index = keys.indexOf(item_id)
+
+		next = index +1
+		if (typeof keys[next] == 'undefined')
+			next = 0
+
+		return keys[next]
+	},
+	
+	getPrevStackItem: function(stack_id, item_id)
+	{
+		var keys = Object.keys(this.getStack(stack_id));
+		var index = keys.indexOf(item_id)
+
+		next = index -1
+		if (typeof keys[next] == 'undefined')
+			next = keys.length -1
+
+		return keys[next]
+	},
+
+
+}
+
+
+
+
 
 
 

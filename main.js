@@ -1124,36 +1124,6 @@ var ItemController = {
 		this.grab.lastTime = Date.now()
 	},
 
-	_init: function()
-	{
-		this.add(new Item('weapons', id, new Entity ({
-				X: this.randomPos().X,
-				Y: this.randomPos().Y,
-				alias: id,
-				width:48,
-				height:32,
-				drawX: -8,
-				drawY: 0,
-				scaleX: 0.49,
-				scaleY: 0.49,
-				color: 'red',
-				sprite: new SpriteSheet([id], 'weapon'),
-			})))
-
-		this.add(new Item('ammo', id, new Entity ({
-				X: this.randomPos().X,
-				Y: this.randomPos().Y,
-				alias: id +' ammo',
-				width:48,
-				height:32,
-				scaleX: 0.49,
-				scaleY: 0.49,
-				drawX: -8,
-				color: 'red',
-				sprite: new SpriteSheet(['ammo.box']),
-			}), 999))
-	},
-
 	update: function(dt)
 	{
 		var items = _items.get()
@@ -1465,7 +1435,7 @@ var WeaponController = {
 
 	getCurrentWeaponId: function ()
 	{
-		return this.data.current
+		return _inventory.get('current', false, PlayerController.id)
 	},
 
 	getCurrentWeapon: function ()
@@ -2357,6 +2327,12 @@ var registerModules = (function(){
 			new Property('Y', 0, true),
 			new Property('grabbable', false, true),
 			new Property('grabbed_by', null, true),
+		])
+
+	_inventory = StackModuleMaster.create('inventory', [
+			new Property('id', null),
+			new Property('items', {}, true),
+			new Property('current', null, true),
 		])
 
 	_players.getSocket = _items.getSocket = function(id){

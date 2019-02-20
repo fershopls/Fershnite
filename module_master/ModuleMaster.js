@@ -66,13 +66,13 @@ var ModuleMaster = {
 		if (typeof id == 'undefined')
 			return this.values.get()
 
-		if (dimension)
+		if (typeof dimension != 'undefined')
 			this.values.dimension(dimension)
 		
 		if (this.values.has(id))
 			var value = def(this.values.get(id), default_value)
 
-		if (dimension)
+		if (typeof dimension != 'undefined')
 			this.values.dimension()
 		
 		return value
