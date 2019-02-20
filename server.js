@@ -224,7 +224,6 @@ var InventoryController = {
 
 	setCurrentWeapon: function (player_id, item_id)
 	{
-		item_id = item_id.split('weapon.').join('')
 		playerInventory = this.get(player_id)
 		playerInventory.current = item_id
 		_inventory.set(player_id, playerInventory)

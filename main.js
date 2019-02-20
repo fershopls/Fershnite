@@ -1441,6 +1441,7 @@ var WeaponController = {
 	getCurrentWeapon: function ()
 	{
 		var weapon = this.getWeapon(this.getCurrentWeaponId())
+		
 		if (weapon)
 			return weapon
 		else
@@ -1537,10 +1538,11 @@ var WeaponController = {
 
 		// Initialize Weapons
 		var weaponObjects = {};
-		for (id in weapons)
+		for (index in weapons)
 		{
-			if (weapons.hasOwnProperty(id))
+			if (weapons.hasOwnProperty(index))
 			{
+				var id = 'weapon.' + index
 				weaponObjects[id] = new Weapon(weapons[id])
 				weaponObjects[id].id = id
 			}
