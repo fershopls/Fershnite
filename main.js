@@ -159,7 +159,7 @@ function SpriteSheet (sprites, prefix)
 
 			var full_id = this.getPrefix() + sprites[id]
 			var sprite = SpriteController.get(full_id)
-			this.stack[sprites[id]] = sprite
+			this.stack[full_id] = sprite
 		}
 	}
 
@@ -178,9 +178,13 @@ function SpriteSheet (sprites, prefix)
 		}
 	}
 
-	this.get = function ()
+	this.get = function (id)
 	{
 		var current_id = this.getCurrentId()
+		
+		if (typeof id != 'undefined')
+			current_id = id
+		
 		var x = this.stack[current_id]
 		if (typeof x == 'undefined')
 			console.log('get', current_id)
@@ -282,7 +286,12 @@ var AimController = {
 	
 	getPivot: function()
 	{
-		return PlayerController.entity.center()
+		var player = _players.get(PlayerController.id)
+		player = PlayerController.getDrawEntityModel(player)
+		return {
+			X: player.X + players.width/2,
+			Y: player.Y + player.height/2
+		}
 	},
 
 	getAngleFromTo: function (x, y, to_x, to_y)
@@ -702,7 +711,8 @@ var UIController = {
 	{
 		ctx.save()
 		ctx.translate(94, Core.data.canvas.height - 76)
-		this.sprite.get(WeaponController.getCurrentWeaponId()).render(ctx)
+		var sprite = this.sprite.get(WeaponController.getCurrentWeaponId())
+		sprite.render(ctx)
 		ctx.restore()
 
 		// prev weapon
@@ -1543,7 +1553,7 @@ var WeaponController = {
 			if (weapons.hasOwnProperty(index))
 			{
 				var id = 'weapon.' + index
-				weaponObjects[id] = new Weapon(weapons[id])
+				weaponObjects[id] = new Weapon(weapons[index])
 				weaponObjects[id].id = id
 			}
 		}
@@ -1738,11 +1748,11 @@ var PlayerController = {
   },
   
 
-  getDrawEntityModel: function(id, player) {
+  getDrawEntityModel: function(player) {
   		var drawEntityModel = {
 			X: player.X,
 			Y: player.Y,
-			alias: id,
+			alias: player.id,
 			width: 32,
 			height: 32,
 			color: '#00A',
@@ -1758,7 +1768,7 @@ var PlayerController = {
   	var players = _players.get()
   	
   	StackMaster.loop(players, function(id, player){
-		DrawEntity.draw('players', ctx, this.getDrawEntityModel(id, player))
+		DrawEntity.draw('players', ctx, this.getDrawEntityModel(player))
   	}, this)
   },
 
