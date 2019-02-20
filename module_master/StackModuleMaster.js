@@ -1,6 +1,8 @@
-var Property = require('./Property.js')
-var StackMaster = require('./StackMaster.js')
-var ModuleMaster = require('./ModuleMaster.js')
+if (typeof module != 'undefined') {
+	var Property = require('./Property.js')
+	var StackMaster = require('./StackMaster.js')
+	var ModuleMaster = require('./ModuleMaster.js')
+}
 
 var StackModuleMaster = Object.assign({}, StackMaster, {
 	stack: [],

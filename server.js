@@ -24,9 +24,10 @@ var _players = master.create('players', [
 
 var sync = function (module_id, value_id, id)
 {
-	console.log(module_id, value_id, id)
 	var player = _players.get(value_id)
-	player.socket.broadcast.emit('sync', module_id, value_id, id);
+	player.socket.broadcast.emit('sync', module_id, value_id, id, player[id]);
+	
+	console.log(module_id, value_id, id, player[id])
 }
 _players.sync = sync
 

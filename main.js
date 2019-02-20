@@ -2094,19 +2094,6 @@ function Enemy (entity)
 var EnemyController = {
 	
 	stack: {},
-	
-	_init: function()
-	{
-		this.entity = new Entity({
-			X: 320,
-			Y: 120,
-			alias: 'enemy',
-			width: 32,
-			height: 32,
-			color: 'purple',
-			sprite: new SpriteSheet(['enemy.stand'])
-		})
-	},
 
 	get: function(id)
 	{
@@ -2260,13 +2247,20 @@ var Socket = {
 			EnemyController.deleteById(id)
 		})
 		this.io.on('shootDraw', ShootController.socketShootDraw)
+
+		this.io.on('sync', function(module_id, value_id, id, value) {
+			var module = StackModuleMaster.get(module_id)
+			data = {}
+			data[id] = value
+			module.set(value_id, data)
+			console.log(module.get(value_id))
+		})
 	}
 }
-
-var players = StackModuleMaster.create('players', [
+var _players = StackModuleMaster.create('players', [
 		new Property('X', 0),
 		new Property('Y', 0)
 	])
-
 console.log('MODULES:', Object.keys(StackModuleMaster.get()))
-console.log('VALUES:', players.values.get())
+
+

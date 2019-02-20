@@ -1,5 +1,8 @@
-var StackMaster = require('./StackMaster.js');
-var Property = require('./Property.js');
+if (typeof module != 'undefined')
+{
+	var StackMaster = require('./StackMaster.js');
+	var Property = require('./Property.js');
+}
 
 var ModuleMaster = {
 	properties: {},
