@@ -23,11 +23,11 @@ var _players = master.create('players', [
 		new Property('Y', 0, true, true),
 		new Property('width', 32),
 		new Property('height', 32),
-		new Property('socket', 0),
+		new Property('socket', 0)
 	])
 
 var _items = master.create('items', [
-		new Property('id', 0),
+		new Property('id', null),
 		new Property('X', 0, true),
 		new Property('Y', 0, true),
 		new Property('width', 48),
@@ -98,7 +98,7 @@ var GameUpdateController = {
 		_items.getData().for(function(id, item){
 			if (HitController.boxCollides(player, item))
 			{
-				console.log('yes')
+				console.log(item)
 			}
 		}, this)
 	},
@@ -117,7 +117,11 @@ var GameUpdateController = {
 var ItemsController = {
 	new: function(id, point)
 	{
-		_items.create(id, point)
+		_items.create(id, {
+			id: id,
+			X: point.X,
+			Y: point.Y,
+		})
 	},
 
 	generate: function()

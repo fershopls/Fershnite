@@ -23,7 +23,16 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 
 	initModule: function (id, properties)
 	{
-		var module = Object.assign({}, ModuleMaster, {id:id, clientSide: this.clientSide})
+		// FIX POO
+		var settings = {
+			id:id,
+			clientSide: this.clientSide,
+			_properties: {},
+			properties: function() {
+				return this._properties
+			}
+		}
+		var module = Object.assign({}, ModuleMaster, settings)
 		return module.init(properties)
 	},
 

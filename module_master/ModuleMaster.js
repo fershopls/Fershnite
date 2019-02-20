@@ -6,7 +6,6 @@ if (typeof module != 'undefined')
 }
 
 var ModuleMaster = {
-	properties: {},
 	values: [],
 
 	init: function(propertiesList){
@@ -28,15 +27,15 @@ var ModuleMaster = {
 	{
 		if (property.hasOwnProperty('id')
 			&& property instanceof Property)
-			this.properties[property.id] = property
+			this.properties()[property.id] = property
 	},
 
 	getProperty: function(id)
 	{
 		if (!id)
-			return this.properties
-		if (this.properties.hasOwnProperty(id))
-			return this.properties[id]
+			return this.properties()
+		if (this.properties().hasOwnProperty(id))
+			return this.properties()[id]
 		return null
 	},
 
@@ -54,7 +53,7 @@ var ModuleMaster = {
 
 	hasProperty: function(id)
 	{
-		return this.properties.indexOf(id) != -1
+		return this.properties().indexOf(id) != -1
 	},
 
 	getData: function()
@@ -132,7 +131,7 @@ var ModuleMaster = {
 
 	getSynchronizableProperties: function()
 	{
-		// StackMaster.loop(this.properties, function(id, property){
+		// StackMaster.loop(this.properties(), function(id, property){
 		// 	console.log(id, property.allow_sync)
 		// }, this)
 	},
@@ -141,7 +140,7 @@ var ModuleMaster = {
 	{
 		sync = def(sync, true)
 		
-		StackMaster.loop(this.properties, function(id, property){
+		StackMaster.loop(this.properties(), function(id, property){
 			var value = def(initialKeyValue[id], property.default_value)
 			this.setSingleProperty(data_id, id, value, sync)
 		}, this)

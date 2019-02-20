@@ -1,5 +1,4 @@
 var StackMaster = {
-	stack: [],
 	current_dimension: null,
 	name: 'none',
 
