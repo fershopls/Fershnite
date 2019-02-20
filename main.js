@@ -1163,21 +1163,21 @@ var ItemController = {
 		// this.sprite.get().update()	
 	},
 
-	sprite: null,
-	init: function ()
-	{
-		this.sprite = new SpriteSheet(['ammo.box'])
-	},
-
 	getDrawEntityModel: function(id, item) {
 			var drawEntityModel = {
 			X: item.X,
 			Y: item.Y,
+
 			alias: id,
-			width: 32,
-			height: 32,
-			color: '#00A',
-			sprite: this.sprite,
+			width:48,
+			height:32,
+			drawX: -8,
+			drawY: 0,
+			scaleX: 0.49,
+			scaleY: 0.49,
+			color: 'red',
+			// TODO fix creating a spritesheet everytime
+			sprite: new SpriteSheet([id]),
 	  	}
 	  	if (id != this.id)
 	  		drawEntityModel.color = 'red'

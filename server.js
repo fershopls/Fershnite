@@ -65,7 +65,9 @@ var ItemsController = {
 
 	generate: function()
 	{
-		this.new('weapon.shotgun', {X: 100, Y: 100})
+		this.new('weapon.shotgun', {X: Math.random()*500, Y: 100})
+		this.new('weapon.rifle', {X: Math.random()*500, Y: 200})
+		this.new('weapon.smg', {X: Math.random()*500, Y: 300})
 	},
 }
 
