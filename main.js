@@ -142,13 +142,13 @@ var Core = {
 
 
 /*==========================================================================================
-=            #SPRITE ClASS                     =============================================
+=            #SPRITESHEET ClASS                     =============================================
 ==========================================================================================*/
 function SpriteSheet (sprites, prefix)
 {
 	this.stack = {}
 	this.prefix = prefix?prefix: ""
-	this.currentId = Object.keys(this.stack)[0];
+	this.currentId = null;
 
 	this.init = function(sprites, prefix)
 	{
@@ -178,25 +178,22 @@ function SpriteSheet (sprites, prefix)
 		}
 	}
 
-	this.get = function (id)
+	this.get = function ()
 	{
-		if (id && this.stack.hasOwnProperty(id))
-			return this.stack[id]
-		if (this.stack.hasOwnProperty(this.getCurrentId()))
-			return this.stack[this.getCurrentId()]
-
-		return false
+		var current_id = this.getCurrentId()
+		var x = this.stack[current_id]
+		if (typeof x == 'undefined')
+			console.log('get', current_id)
+		return x
 	},
 
 	this.getCurrentId = function()
 	{
-		if (this.currentId)
-			return this.currentId
-		
-		if (Object.keys(this.stack).length > 0)
+		if (!this.currentId && Object.keys(this.stack).length > 0)
 			this.currentId = Object.keys(this.stack)[0]
 		
-		return false
+		return this.currentId
+		
 	}
 
 	this.init(sprites, this.prefix)
@@ -246,7 +243,7 @@ var SpriteController = {
 	{
 		if (this.stack.hasOwnProperty(id))
 			return this.stack[id]
-		console.log("SPRITE 404",id)
+		console.log("SPRITE 404",id,'in',Object.keys(this.stack))
 		return false
 	}
 
@@ -958,6 +955,7 @@ function Entity (settings)
 ===========================================*/
 var DrawEntity = {
 	defaultSettings: {
+			id: null,
 			alias: null,
 			X: 220,
 			Y: 270,
@@ -978,10 +976,15 @@ var DrawEntity = {
 			  },
 		},
   	
-  	draw: function (ctx, settings)
+  	draw: function (id, ctx, settings)
   	{
   		var draw = Object.assign({}, this.defaultSettings, settings)
   		
+  		if (draw.sprite.get())
+  		{
+  			// console.log(this)
+  			// return	0
+  		}
   		if (draw.sprite.get())
   		{
 	  		ctx.save();
@@ -1089,7 +1092,6 @@ function Item (stack_id, item_id, entity, qty)
 ==========================================================================================*/
 
 var ItemController = {
-	stack: [],
 
 	grab: {
 		lastTime: 0,
@@ -1122,84 +1124,34 @@ var ItemController = {
 		this.grab.lastTime = Date.now()
 	},
 
-	randomPos: function()
+	_init: function()
 	{
-		var X = (Core.data.canvas.width -100) * Math.random()
-		var Y = (Core.data.canvas.height -200) * Math.random()
-		var round = 32
-		var X = Math.ceil(X/round)*round;
-		var Y = Math.ceil(Y/round)*round;
+		this.add(new Item('weapons', id, new Entity ({
+				X: this.randomPos().X,
+				Y: this.randomPos().Y,
+				alias: id,
+				width:48,
+				height:32,
+				drawX: -8,
+				drawY: 0,
+				scaleX: 0.49,
+				scaleY: 0.49,
+				color: 'red',
+				sprite: new SpriteSheet([id], 'weapon'),
+			})))
 
-		return {
-			X: X,
-			Y: Y,
-		}
-	},
-
-	init: function()
-	{
-		var items = ['shotgun', 'smg', 'rifle']
-
-		for (id in items)
-		{
-			if (!items.hasOwnProperty(id))
-				continue
-			var id = items[id]
-
-			this.add(new Item('weapons', id, new Entity ({
-						X: this.randomPos().X,
-						Y: this.randomPos().Y,
-						alias: id,
-						width:48,
-						height:32,
-						drawX: -8,
-						drawY: 0,
-						scaleX: 0.49,
-						scaleY: 0.49,
-						color: 'red',
-						sprite: new SpriteSheet([id], 'weapon'),
-					}))
-				)
-				
-				this.add(new Item('ammo', id, new Entity ({
-						X: this.randomPos().X,
-						Y: this.randomPos().Y,
-						alias: id +' ammo',
-						width:48,
-						height:32,
-						scaleX: 0.49,
-						scaleY: 0.49,
-						drawX: -8,
-						color: 'red',
-						sprite: new SpriteSheet(['ammo.box']),
-					}), 999)
-				)
-		}
-
-		
-	},
-
-	getStack: function ()
-	{
-		return this.stack
-	},
-
-	add: function(item)
-	{
-		this.stack.push(item)
-	},
-
-	getItem: function(item_id)
-	{
-		if (this.getStack().hasOwnProperty(item_id))
-			return this.getStack()[item_id]
-		
-		return false
-	},
-
-	removeItemById: function (item_id)
-	{
-		this.stack.splice(item_id, 1)
+		this.add(new Item('ammo', id, new Entity ({
+				X: this.randomPos().X,
+				Y: this.randomPos().Y,
+				alias: id +' ammo',
+				width:48,
+				height:32,
+				scaleX: 0.49,
+				scaleY: 0.49,
+				drawX: -8,
+				color: 'red',
+				sprite: new SpriteSheet(['ammo.box']),
+			}), 999))
 	},
 
 	update: function(dt)
@@ -1208,24 +1160,36 @@ var ItemController = {
 		if (!input.isDown('e'))
 			this.grab.lastKeyWasDown = false
 
-		for (id in this.stack)
-		{
-			if (!this.stack.hasOwnProperty(id))
-				continue;
-
-			this.stack[id].update(dt, id)
-		}
+		// this.sprite.get().update()	
 	},
 
-	draw: function(ctx)
+	sprite: null,
+	init: function ()
 	{
-		for (id in this.stack)
-		{
-			if (!this.stack.hasOwnProperty(id))
-				continue;
+		this.sprite = new SpriteSheet(['ammo.box'])
+	},
 
-			this.stack[id].draw(ctx)
-		}
+	getDrawEntityModel: function(id, item) {
+			var drawEntityModel = {
+			X: item.X,
+			Y: item.Y,
+			alias: id,
+			width: 32,
+			height: 32,
+			color: '#00A',
+			sprite: this.sprite,
+	  	}
+	  	if (id != this.id)
+	  		drawEntityModel.color = 'red'
+	  	return drawEntityModel
+	},
+
+	draw: function(ctx) {
+		var items = _items.get()
+		
+		StackMaster.loop(items, function(id, item){
+			DrawEntity.draw('items', ctx, this.getDrawEntityModel(id, item))
+		}, this)
 	},
 }
 
@@ -1626,7 +1590,6 @@ var PlayerController = {
 		color: '#00A',
 		sprite: this.sprite
   	})
-	this.entity.sprite.set('stand')
   },
 
   update: function(dt){
@@ -1778,7 +1741,7 @@ var PlayerController = {
   	var players = _players.get()
   	
   	StackMaster.loop(players, function(id, player){
-		DrawEntity.draw(ctx, this.getDrawEntityModel(id, player))
+		DrawEntity.draw('players', ctx, this.getDrawEntityModel(id, player))
   	}, this)
   },
 
@@ -1837,6 +1800,7 @@ var HitController = {
 
 	checkItemsPlayerHit: function ()
 	{
+		return 0;
 		var items = ItemController.getStack()
 
 		for (id in items)
@@ -2276,6 +2240,7 @@ var MouseController = {
 =            #RESOURCES #INIT                  =============================================
 ==========================================================================================*/
 $(document).ready(function(){
+	registerModules()
 	resources.load([
 	    'assets/gui.png',
 	    'assets/player.png',
@@ -2330,23 +2295,26 @@ var Socket = {
 		})
 	}
 }
-StackModuleMaster.clientSide = true;
 
-var _players = StackModuleMaster.create('players', [
-		new Property('id', 0),
-		new Property('X', 0, true),
-		new Property('Y', 0, true)
-	])
+var registerModules = (function(){
+	StackModuleMaster.clientSide = true;
 
-var _items = StackModuleMaster.create('items', [
-		new Property('id', 0),
-		new Property('X', 0, true),
-		new Property('Y', 0, true),
-	])
+	_players = StackModuleMaster.create('players', [
+			new Property('id', 0),
+			new Property('X', 0, true),
+			new Property('Y', 0, true)
+		])
 
-_players.getSocket = function(id){
-	return Socket.io
-}
+	_items = StackModuleMaster.create('items', [
+			new Property('id', 0),
+			new Property('X', 0, true),
+			new Property('Y', 0, true),
+		])
+
+	_players.getSocket = function(id){
+		return Socket.io
+	}
+})
 
 
 
