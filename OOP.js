@@ -129,7 +129,6 @@ player.stack.removeById()
 def = (function(v, d) { return typeof v=='undefined'?d:v })
 function Property (id, default_value, allow_sync, allow_sync_client_update)
 {
-
 	this.id = id
 	this.default_value = def(default_value, null)
 	this.allow_sync = def(allow_sync, true)

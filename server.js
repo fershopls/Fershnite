@@ -3,7 +3,8 @@ var bodyParser = require('body-parser')
 var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
-var oop = require('./OOP.js')
+var master = require('./module_master/StackModuleMaster.js')
+var Property = require('./module_master/Property.js')
 
 app.use(express.static(__dirname));
 app.use(bodyParser.json());
@@ -14,13 +15,20 @@ app.use(bodyParser.urlencoded({extended: false}))
 
 
 
-var players = oop.StackModuleMaster.create('players', [
-		new oop.Property('X', 0),
-		new oop.Property('Y', 0),
-		new oop.Property('id', 0),
-		new oop.Property('socket', 0),
+var _players = master.create('players', [
+		new Property('X', 0, true),
+		new Property('Y', 0, true),
+		new Property('id', 0),
+		new Property('socket', 0),
 	])
 
+var sync = function (module_id, value_id, id)
+{
+	console.log(module_id, value_id, id)
+	var player = _players.get(value_id)
+	player.socket.broadcast.emit('sync', module_id, value_id, id);
+}
+_players.sync = sync
 
 
 
@@ -33,22 +41,24 @@ var PlayersController = {
 	newPlayer: function(socket)
 	{
 		var id = socket.id
-		players.set(id, {
+		var player = _players.set(id, {
 				id: id,
 				socket: socket,
-				X: 800 * Math.random(),
-				Y: 300 * Math.random(),
+				X: Math.round(800 * Math.random()),
+				Y: Math.round(300 * Math.random()),
 			})
+		var point = this.getPoint(player)
 
-		console.log('[PLAYERS][NEW]', players.get(id).id)
+		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', id)
 		// Send ID to player
-		socket.emit('id', id, this.getPoint(players.get(id)))
-		// socket.emit('players', this.getPlayersPoints())
-		// console.log('[PLAYERS][SEND] ALL', Object.keys(this.getStack()).length)
-		// console.log('[PLAYERS][SEND] KEY', Object.keys(this.getStack()))
+		socket.emit('id', id, point)
+		socket.emit('players', this.getPlayersPoints())
 		// Send player to other players
-		//socket.broadcast.emit('enemy', id, this.get(id).getPoint());
-		return players.get(id)
+		socket.broadcast.emit('enemy', id, point);
+		console.log('[PLAYER][LEN]', Object.keys(_players.get()).length)
+		console.log('[PLAYER][KEY]', Object.keys(_players.get()))
+
+		return player
 	},
 
 	getPoint: function (player)
@@ -58,47 +68,31 @@ var PlayersController = {
 
 	getPlayersPoints: function()
 	{
-		var players = {}
-		var stack = this.getStack()
-		for (id in stack)
-		{
-			if (!stack.hasOwnProperty(id))
-				continue
-			
-			// TODO delete unconnected players
-			if (!stack[id].checkSocketConnection())
-				continue
-
-			players[id] = stack[id].getPoint()
-		}
-		return players
+		var player_list = {}
+		var stack = _players.getValues().for(function(id, player){
+			if (this.checkSocketConnection(player))
+				player_list[id] = this.getPoint(player)
+		}, this)
+		return player_list
 	},
 
-	deleteById: function(id)
+	checkSocketConnection: function(player)
 	{
-		if (this.stack.hasOwnProperty(id))
-		{
-			delete this.stack[id]
-			io.emit('playerLeft', id)
-		}
+		if (player.socket.connected)
+			return true
+
+		var x = _players.remove(player.id)
+		console.log('[PLAYER][DELETE]', player.id, x)
+		return false
 	},
 
-	get: function (id)
+	move: function (id, point)
 	{
-		if (this.stack.hasOwnProperty(id))
-			return this.stack[id]
-		else return false
+		_players.set(id, {
+			X: point.X,
+			Y: point.Y
+		})
 	},
-
-	getStack: function()
-	{
-		return this.stack
-	},
-
-	generateRandomId: function()
-	{
-		return Math.ceil(Math.random() * (10000 - 1000)) + 1000
-	}
 
 }
 
@@ -106,18 +100,13 @@ var PlayersController = {
 
 
 
-
-var makeRandomId = function () {
-	return Math.random()
-}
 
 
 io.on('connection', (socket) => {
 	var player = PlayersController.newPlayer(socket)
 	
 	socket.on('playerMove', (id, point) => {
-		if (PlayersController.get(id))
-			PlayersController.get(id).move(point)
+		PlayersController.move(id, point)
 	});
 	
 	socket.on('shootClick', (id, x, y, mouse_x, mouse_y, weapon_id) => {
