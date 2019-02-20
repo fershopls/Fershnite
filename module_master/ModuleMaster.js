@@ -184,12 +184,12 @@ var ModuleMaster = {
 		if (model.model_id == 'updateDataIdProperties')
 		{
 			this.set(model.data_id, model.data, false)
-			console.log('PLAYER:', model.data_id)
+			console.log('[=] PLAYER', model.data_id)
 		}
 
 		if (model.model_id == 'removeDataId')
 		{
-			console.log('Player left', model.data_id)
+			console.log('[-] PLAYER', model.data_id)
 			this.remove(model.data_id, false)
 		}
 	},

@@ -64,26 +64,28 @@ var PlayersController = {
 
 	newPlayer: function(socket)
 	{
-		var id = socket.id
-		// not sincronizing X Y 
-		var player = _players.set(id, {
-				id: id,
-				socket: socket,
+		// Sign In on Client
+		socket.emit('id', socket.id)
+		
+		// Sign In on Server
+		var player = _players.set(socket.id, {
+				id: socket.id,
+				socket: socket
+			})
+
+		// Set Initial Position
+		_players.set(player.id, {
 				X: Math.round(800 * Math.random()),
 				Y: Math.round(300 * Math.random()),
 			})
-		var point = this.getPoint(player)
-		// Turn on sync
-		socket.emit('id', id, point)
-
-		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', id)
-		// Send ID to player
+		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', player.id)
+		
+		// Send current online players
 		this.sendPlayersPointsTo(socket)
-		console.log('[=][PLAYER]', id, 'Sending player points')
-		// Send player to other players
-		socket.broadcast.emit('enemy', id, point);
-		console.log('[PLAYER][LEN]', Object.keys(_players.get()).length)
-		console.log('[PLAYER][KEY]', Object.keys(_players.get()))
+		console.log('[=][PLAYER] Online players sended ->', player.id)
+		
+		console.log('[i][PLAYER][LEN]', Object.keys(_players.get()).length)
+		console.log('[i][PLAYER][KEY]', Object.keys(_players.get()))
 
 		return player
 	},

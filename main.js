@@ -1588,17 +1588,12 @@ var PlayerController = {
   	aceleration: 500, // 0 speed to max_speed in ms 
   },
   
-  setId: function(id, point)
+  setId: function(id)
   {
   	this.id = id
 
-  	_players.set(id,{
-  		X: point.X,
-  		Y: point.Y,
-  	}, false)
-
   	if (Core.io_debug)
-  		console.log('Player.ID', id, 'AT', point)
+  		console.log('[X] PLAYER', id)
   },
 
   loadOtherPlayers: function(players)
@@ -2321,23 +2316,9 @@ var Socket = {
 	{
 		this.io = io()
 
-		this.io.on('id', function(id, point){
-			PlayerController.setId(id, point)
+		this.io.on('id', function(id){
+			PlayerController.setId(id)
 		})
-		
-		this.io.on('players', function(players){
-			PlayerController.loadOtherPlayers(players)
-		})
-		this.io.on('enemy', function(id, point){
-			EnemyController.set(id, point, 'red')
-		})
-		this.io.on('move', function(id, point){
-			console.log('MOVE', id, point)
-		})
-		this.io.on('playerLeft', function(id){
-			EnemyController.deleteById(id)
-		})
-		this.io.on('shootDraw', ShootController.socketShootDraw)
 
 		this.io.on('sync', function(data) {
 			var module = StackModuleMaster.get(data.module_id)
