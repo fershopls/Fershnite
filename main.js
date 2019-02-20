@@ -1591,7 +1591,7 @@ var PlayerController = {
   setId: function(id, point)
   {
   	this.id = id
-  	
+
   	_players.set(id,{
   		X: point.X,
   		Y: point.Y,
@@ -1693,8 +1693,8 @@ var PlayerController = {
 	    	X: player.X+this.movement.x_speed,
 	    	Y: player.Y+this.movement.y_speed,
 	    }
-	    var diff = this.isPointsDifference(point)
-	    _players.set(this.id, point, diff)
+	    var theresDiff = this.thereIsPointsDifference(point)
+	    _players.set(this.id, point, theresDiff)
     }
 
     // Shoot thing
@@ -1756,23 +1756,26 @@ var PlayerController = {
 	this.capturedPoint = this.getPoint(_players.get(this.id))
   },
 
-  isPointsDifference: function(point)
+  thereIsPointsDifference: function(point)
   {
   	return this.capturedPoint.X != point.X
 		|| this.capturedPoint.Y != point.Y
   },
   
 
-  getDrawEntityModel: function(player) {
-  		return {
+  getDrawEntityModel: function(id, player) {
+  		var drawEntityModel = {
 			X: player.X,
 			Y: player.Y,
-			alias: 'player',
+			alias: id,
 			width: 32,
 			height: 32,
 			color: '#00A',
 			sprite: this.sprite
 	  	}
+	  	if (id != this.id)
+	  		drawEntityModel.color = 'red'
+	  	return drawEntityModel
 	},
 
   draw: function(ctx) {
@@ -1780,7 +1783,7 @@ var PlayerController = {
   	var players = _players.get()
   	
   	StackMaster.loop(players, function(id, player){
-		DrawEntity.draw(ctx, this.getDrawEntityModel(player))
+		DrawEntity.draw(ctx, this.getDrawEntityModel(id, player))
   	}, this)
   },
 
@@ -2321,6 +2324,7 @@ var Socket = {
 		this.io.on('id', function(id, point){
 			PlayerController.setId(id, point)
 		})
+		
 		this.io.on('players', function(players){
 			PlayerController.loadOtherPlayers(players)
 		})
@@ -2337,6 +2341,8 @@ var Socket = {
 
 		this.io.on('sync', function(data) {
 			var module = StackModuleMaster.get(data.module_id)
+
+			// syncInput sometimes is undefined
 			if (module)
 				module.syncInput(data)
 			// console.log('PULL', module_id, value_id, id, value)
@@ -2346,6 +2352,7 @@ var Socket = {
 StackModuleMaster.clientSide = true;
 
 var _players = StackModuleMaster.create('players', [
+		new Property('id', 0),
 		new Property('X', 0, true),
 		new Property('Y', 0, true)
 	])

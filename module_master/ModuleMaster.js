@@ -1,6 +1,7 @@
 if (typeof module != 'undefined')
 {
 	var StackMaster = require('./StackMaster.js');
+	var ModelMaster = require('./ModelMaster.js');
 	var Property = require('./Property.js');
 }
 
@@ -56,6 +57,11 @@ var ModuleMaster = {
 		return this.properties.indexOf(id) != -1
 	},
 
+	getData: function()
+	{
+		return this.values
+	},
+
 	get: function(id, default_value, dimension)
 	{
 		if (typeof id == 'undefined')
@@ -73,137 +79,173 @@ var ModuleMaster = {
 		return value
 	},
 
-	remove: function (value_id){
-		return this.values.removeById(value_id)
+	remove: function (data_id, sync){
+		sync = def(sync, true)
+
+		var removeReturn = this.values.removeById(data_id)
+		if (removeReturn && sync)
+		{
+			var model = ModelMaster.new('removeDataId', {
+				module_id: this.id,
+				data_id: data_id,
+			})
+			this.syncOutput(model)
+		}
+		return removeReturn
 	},
 
-	setSingleProperty: function (value_id, key, value, sync)
+	setSingleProperty: function (data_id, key, value, sync)
 	{
 		var property = this.getProperty(key)
-		if (this.get(value_id, key) == value)
+		if (this.get(data_id, key) == value)
 			return false
 
 		if (property)
 		{
 
-			this.values.dimension(value_id, function (){
+			this.values.dimension(data_id, function (){
 				this.set(key, value)
 			})
 
 			if (property.allow_sync && sync)
-				this.syncOutput({
+			{
+				var model = ModelMaster.new('updateSingleProperty', {
 					module_id: this.id,
-					value_id: value_id,
+					data_id: data_id,
 					key: property.id,
-					value: this.get(property.id, null, value_id)
+					value: this.get(property.id, null, data_id)
 				})
+				this.syncOutput(model)
+			}
 		}
 	},
 
-	set: function(value_id, dicKeyValue, sync)
+	set: function(data_id, dicKeyValue, sync)
 	{
 		sync = def(sync, true)
 		StackMaster.loop(dicKeyValue, function(key, value){
-			this.setSingleProperty(value_id, key, value, sync)
+			this.setSingleProperty(data_id, key, value, sync)
 		}, this)
 
-		return this.values.get(value_id)
-	},
-
-	setSync: function (value_id, data)
-	{
-		this.set (value_id, data)
-	},
-
-	syncModule: function()
-	{
-		this.get()
+		return this.values.get(data_id)
 	},
 
 	syncInput: function(data)
 	{
 		if (this.clientSide)
 		{
-			// console.log('CLIENT INPUT FROM SERVER', data)
-			// console.log('GET', data.key, data.value)
-			var keyValue = {}
-			keyValue[data.key] = data.value
-			this.set(data.value_id, keyValue, false)
-			// console.log('PRNT', data.value_id, this.get(data.key, null, data.value_id))
+			this.syncInputClient(data)
 		}
 		else
 		{
-			// console.log('SERVER INPUT FROM CLIENT', data)
-			this.syncOutput(data)
+			this.syncInputServer(data)
 		}
 	},
 
-	syncOutput: function(data)
+	syncInputModelize: function (data)
 	{
-		// data = {
-		// 	module_id: data.module_id,
-		// 	value_id: data.value_id,
-		// 	key: data.key,
-		// 	value: this.get(data.key, null, data.value_id),
-		// }
-		var socket = this.getSocketSide(data.value_id)
+		return ModelMaster.new(data.model_id, data)
+	},
+
+	syncInputServer: function (data)
+	{
+		var model = this.syncInputModelize(data)
+		
+		if (model.model_id == 'updateSingleProperty')
+		{
+			var property = this.getProperty(model.key)
+			if (property.broadcastable)
+			{
+				// console.log('BORADCAST',model.key)
+				var socket = this.get('socket', null, model.data_id)
+				socket = socket.broadcast
+			} else {
+				var socket = undefined
+			}
+			// console.log('SERVER INPUT FROM CLIENT', data)
+			this.syncOutput(model, socket)
+			// console.log('input server side', model)
+		}
+	},
+
+	syncInputClient: function (data)
+	{
+		var model = this.syncInputModelize(data)
+		if (model.model_id == 'updateSingleProperty')
+		{
+			// console.log('GET', model.key, model.value)
+			var keyValue = {}
+			keyValue[model.key] = model.value
+			this.set(model.data_id, keyValue, false)
+			// console.log('PRNT', model.data_id, this.get(model.key, null, model.data_id))
+		}
+
+		if (model.model_id == 'removeDataId')
+		{
+			console.log('Player left', model.data_id)
+			this.remove(model.data_id, false)
+		}
+
+		if (model.model_id == 'updateEveryPlayerPoint')
+		{
+			console.log('Update players points')
+		}
+	},
+
+	syncOutput: function(model, socket)
+	{
+		var socket = def(socket, this.getSocketSafe())
 		if (this.clientSide)
 		{
-			this.clientOutput(socket, data)
+			this.clientOutput(model, socket)
 		}
 		else
 		{
-			this.serverOutput(socket, data)
+			this.serverOutput(model, socket)
 		}
 	},
 
-	serverOutput: function (socket, data)
+	serverOutput: function (model, socket)
 	{
-		// console.log('SERVER OUTPUT', data)
-		socket.emit('sync', data)
+		if (model.model_id == 'updateSingleProperty')
+		{
+			// console.log('TC > update', model.data_id, model.key)
+			socket.emit('sync', model)
+		}
+		
+		if (model.model_id == 'removeDataId')
+		{
+			// console.log('TC > remove', model.data_id)
+			socket.emit('sync', model)
+		}
+		
+		if (model.model_id == 'updateEveryPlayerPoint')
+		{
+			// console.log('TC > remove', model.data_id)
+			socket.emit('sync', model)
+		}
 	},
 
-	clientOutput: function(socket, data)
+	clientOutput: function(model, socket)
 	{
-		// console.log('CLIENT OUTPUT', data)
-		socket.emit('sync', data)
+		if (model.model_id == 'updateSingleProperty')
+		{
+			// console.log('TS > update', model.data_id, model.key)
+			socket.emit('sync', model)
+		}
 	},
 
-	getSocketSide: function (id)
+	getSocketSafe: function ()
 	{
-		var socket = this.getSocket(id)
+		var socket = this.getSocket()
 		if (socket)
 		{
-			if (this.clientSide)
-				return socket
-			else
-				return socket.broadcast
+			return socket
 		}
 		else
 		{
-			console.log('[!] Missing socket', id, 'client', this.clientSide)
+			console.log('[!] Missing socket', (this.clientSide)?'client':'server')
 		}
-	},
-
-	sync: function (module_id, value_id, id)
-	{
-		var value = this.get(value_id)
-		if (value)
-		{
-			var socket = this.getSocket(module_id, value_id, id)
-			if (socket)
-			{
-				if (this.clientSide)
-					socket.emit('sync', module_id, value_id, id, value[id])
-				else
-					socket.broadcast.emit('sync', module_id, value_id, id, value[id])
-			}
-			else
-			{
-				console.log('[!] Missing socket')
-			}
-		}
-		//console.log(module_id,value_id,'property',id,'change', this.get(value_id, id))
 	},
 
 	getSocket: function()
