@@ -180,7 +180,7 @@ var ModuleMaster = {
 			}
 
 			if (property.broadcastable)
-				var sync_socket = socket
+				var sync_socket = socket.broadcast
 			else
 				var sync_socket = undefined
 
@@ -189,6 +189,7 @@ var ModuleMaster = {
 			{
 				
 				this.syncOutput(model, sync_socket)
+				// Update Properties
 				var dict = {}
 				dict[model.key] = model.value
 				this.set(model.data_id, dict, false)

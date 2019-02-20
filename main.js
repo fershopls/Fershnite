@@ -48,11 +48,11 @@ var Core = {
 	{
 		return {
 			fire: {
-			'rifle': new sound("/assets/shoot.mp3"),
-			'shotgun': new sound("/assets/shotgun.mp3"),
-			'smg': new sound("/assets/smg.mp3"),
-			'hands': new sound("/assets/hands.mp3"),
-			'emptyGun': new sound("/assets/emptyGun.mp3"),
+				'weapon.rifle': new sound("/assets/shoot.mp3"),
+				'weapon.shotgun': new sound("/assets/shotgun.mp3"),
+				'weapon.smg': new sound("/assets/smg.mp3"),
+				'weapon.hands': new sound("/assets/hands.mp3"),
+				'emptyGun': new sound("/assets/emptyGun.mp3"),
 			},
 			weapon: new sound("/assets/switch_weapon.mp3"),
 		}
@@ -286,10 +286,9 @@ var AimController = {
 	
 	getPivot: function()
 	{
-		var player = _players.get(PlayerController.id)
-		player = PlayerController.getDrawEntityModel(player)
+		var player = PlayerController.getCurrentPlayer()
 		return {
-			X: player.X + players.width/2,
+			X: player.X + player.width/2,
 			Y: player.Y + player.height/2
 		}
 	},
@@ -992,11 +991,6 @@ var DrawEntity = {
   		
   		if (draw.sprite.get())
   		{
-  			// console.log(this)
-  			// return	0
-  		}
-  		if (draw.sprite.get())
-  		{
 	  		ctx.save();
 		    ctx.translate(draw.X + draw.drawX, draw.Y + draw.drawY);
 		    ctx.scale(draw.scaleX, draw.scaleY)
@@ -1390,13 +1384,14 @@ var WeaponController = {
 		if (ammoLoaded > 0 || ammoLoaded == -1)
 		{
 			// Send shoot
-			ShootController.socketShootSend(PlayerController.entity.id,
-				PlayerController.entity.center().X, PlayerController.entity.center().Y,
+			var player = PlayerController.getCurrentPlayer()
+			ShootController.socketShootSend(PlayerController.id,
+				player.center().X, player.center().Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeaponId())
 
-			ShootController.create(PlayerController.entity.id,
-				PlayerController.entity.center().X, PlayerController.entity.center().Y,
+			ShootController.create(PlayerController.id,
+				player.center().X, player.center().Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeapon())
 			if (ammoLoaded != -1)
@@ -1587,21 +1582,9 @@ var PlayerController = {
   		console.log('[X] PLAYER', id)
   },
 
-  loadOtherPlayers: function(players)
+  getEnemies: function ()
   {
-	if (Core.io_debug)
-		console.log('Player.LoadOtherPlayers', Object.keys(players).length)
-	
-	for (id in players)
-	{
-		if (!players.hasOwnProperty(id))
-			continue
-
-		if (id == this.entity.id)
-			continue
-
-		EnemyController.set(id, players[id], 'black')
-	}
+  	return _players.get().splice(this.id, 1)
   },
   
   init: function ()
@@ -1747,16 +1730,26 @@ var PlayerController = {
 		|| this.capturedPoint.Y != point.Y
   },
   
+  getCurrentPlayer: function()
+  {
+	return this.getDrawEntityModel(this.id, _players.get(this.id))
+  },
 
-  getDrawEntityModel: function(player) {
+  getDrawEntityModel: function(id, player) {
   		var drawEntityModel = {
 			X: player.X,
 			Y: player.Y,
-			alias: player.id,
+			id: id,
 			width: 32,
 			height: 32,
 			color: '#00A',
-			sprite: this.sprite
+			sprite: this.sprite,
+			center: function() {
+				return {
+					X: this.X + this.width/2,
+					Y: this.Y + this.height/2,
+				}
+			},
 	  	}
 	  	if (id != this.id)
 	  		drawEntityModel.color = 'red'
@@ -1768,7 +1761,7 @@ var PlayerController = {
   	var players = _players.get()
   	
   	StackMaster.loop(players, function(id, player){
-		DrawEntity.draw('players', ctx, this.getDrawEntityModel(player))
+		DrawEntity.draw('players', ctx, this.getDrawEntityModel(id, player))
   	}, this)
   },
 
@@ -1844,7 +1837,7 @@ var HitController = {
 
 	checkLinesEnemiesHit: function(lines)
 	{
-		var enemies = EnemyController.getStack()
+		var enemies = PlayerController.getEnemies()
 		var hit = false
 		for (id in enemies)
 		{
@@ -1981,9 +1974,11 @@ var HitController = {
 		// where dx is the difference between the x-coordinates of the points
 		// and  dy is the difference between the y-coordinates of the points
 		// sqrt(dx^2 + dy^2)
-		var dx = PlayerController.entity.center().X - enemy.entity.center().X
-		var dy = PlayerController.entity.center().Y - enemy.entity.center().Y
-		return Math.sqrt(dx**2 + dy**2)
+		var player = PlayerController.getCurrentPlayer()
+		//var dx = player.center().X - enemy.entity.center().X
+		//var dy = player.center().Y - enemy.entity.center().Y
+		//return Math.sqrt(dx**2 + dy**2)
+		return 0
 	},
 
 	isColliding: function (a, b, c, d)
