@@ -743,12 +743,17 @@ var UIController = {
 		TextController.create({size:20, text: text, X: X, Y: Y, align: 'right'})
 	},
 
+	getLeftAmmoItemId: function ()
+	{
+		return WeaponController.getCurrentWeaponId().split('weapon').join('ammo')
+	},
+
 	drawLeftAmmo: function(ctx)
 	{
 		var X = Core.data.canvas.width/2+35
 		var Y = Core.data.canvas.height -82
 		
-		text = WeaponController.getAmmo(WeaponController.getCurrentWeaponId())
+		text = PlayerController.getInventoryItem(this.getLeftAmmoItemId())
 		TextController.create({size:20, text: text, X: X, Y: Y, align: 'left'})
 	},
 
@@ -1112,11 +1117,19 @@ var ItemController = {
 	  	return drawModel
 	},
 
+	getSpriteIdFor: function (id)
+	{
+		if (id.split('.')[0] == 'ammo')
+			return 'ammo.box'
+		return id
+	},
+
 	draw: function(ctx) {
 		var items = _items.get()
 		
 		StackMaster.loop(items, function(id, item){
-			SpriteHandler.setSprite(id, id)
+			var sprite_id = this.getSpriteIdFor(id)
+			SpriteHandler.setSprite(id, sprite_id)
 			DrawHandler.drawSprite(id, this.getDrawModel(item))
 			
 			if (item.grabbable)
@@ -1311,7 +1324,7 @@ var WeaponController = {
 		
 		this.data.lastTimeFired = Date.now()
 		
-		var ammoLoaded = this.getCurrentWeapon().get('ammoLoaded')
+		var ammoLoaded = PlayerController.getInventoryItem(WeaponController.getCurrentWeaponId())
 		if (ammoLoaded > 0 || ammoLoaded == -1)
 		{
 			// Send shoot

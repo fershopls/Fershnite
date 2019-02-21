@@ -587,7 +587,6 @@ var WeaponController = {
 		
 			// The shoot starts
 		this.data('lastTimeFired', Date.now())
-		console.log('!!SET', this.data('lastTimeFired'))
 		
 		if (this.weaponHasAmmo())
 		{
@@ -614,7 +613,6 @@ var WeaponController = {
 	weaponHasAmmo: function()
 	{
 		var currentWeaponAmmo = this.getCurrentWeaponAmmo()
-		console.log('Ammo in weapon:', currentWeaponAmmo)
 		if (currentWeaponAmmo)
 			return true
 
@@ -852,21 +850,31 @@ var ItemsController = {
 
 	generate: function()
 	{
-		this.new('weapon.shotgun', {qty: 50, X: Math.random()*500, Y: 100})
-		this.new('weapon.rifle', {qty: 300, X: Math.random()*500, Y: 200})
-		this.new('weapon.smg', {qty:400, X: Math.random()*500, Y: 300})
+		this.new('weapon.shotgun', {qty: 3, X: Math.random()*500, Y: 50})
+		this.new('weapon.rifle', {qty: 10, X: Math.random()*500, Y: 100})
+		this.new('weapon.smg', {qty: 10, X: Math.random()*500, Y: 150})
+		this.new('ammo.smg', {qty: 30, X: Math.random()*500, Y: 200})
+	},
+
+	isPlayerAbleToGrab: function(player_id, item_id)
+	{
+		var HIT_ID = HitController.getId(player_id, item_id)
+		return HitController.get(HIT_ID)
 	},
 
 	grabAttempt: function (socket, model)
 	{
-		var HIT_ID = HitController.getId(socket.id, model.data_id)
-		if (HitController.get(HIT_ID))
+		if (this.isPlayerAbleToGrab(socket.id, model.data_id))
 		{
-			console.log(socket.id,'grab', model.data_id)
-			var item_qty = _items.get(model.data_id, 'qty')
+			var item = _items.get(model.data_id)
 
-			InventoryController.set(socket.id, model.data_id, item_qty)
-			InventoryController.setCurrentWeapon(socket.id, model.data_id)
+			InventoryController.set(socket.id, model.data_id, item.qty)
+
+			// TODO Fix item type
+			if (item.id.split('.')[0] == 'weapon')
+			{
+				InventoryController.setCurrentWeapon(socket.id, model.data_id)
+			}
 			_items.remove(model.data_id)
 		}
 		return false
