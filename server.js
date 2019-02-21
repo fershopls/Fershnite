@@ -85,10 +85,6 @@ var _items = master.create('items', [
 				default: 30,
 				sync: true
 			}),
-		master.field('grabbable', {
-				default: false,
-				sync: true
-			}),
 		master.field('grabbed_by', {
 				sync: true,
 				onSetAttempt: checkGrabbedBy,
@@ -111,6 +107,10 @@ var _inventory = master.create('inventory', [
 			}),
 		// TODO change this current to weapon.currentId
 		master.field('current', {
+				default: null,
+				sync: true
+			}),
+		master.field('item_grabbable', {
 				default: null,
 				sync: true
 			}),
@@ -688,9 +688,9 @@ var WeaponController = {
 				this.setCurrentAmmoInCharger(ammo)
 				this.setCurrentAmmoInInventory(0)
 			}
-			console.log('RELOADING GUN')
+			// console.log('RELOADING GUN')
 		} else {
-			console.log('EMPTY GUN')
+			// console.log('EMPTY GUN')
 		}
 	},
 
@@ -846,30 +846,27 @@ var GameUpdateController = {
 
 	checkItemsWithPlayerHit: function (player)
 	{
-		var lastItemId = 0
+		var resetItemGrabbable = true
+		var socket = _players.get(player.id, 'socket')
 		_items.getData().for(function(id, item) {
 			// var HIT_ID = HitController.getId(player.id, item.id)
 			var HIT_ID = HitController.getId(player.id, item.id)
-			var socket = _players.get(player.id, 'socket')
 			if (HitMathHelper.boxCollides(player, item))
 			{
-				if (ItemsController.checkLastPlayerItemHit(player.id, item.id))
-				{
-					// Send grabbable property
-					_items.set(item.id, {
-						grabbable: true,
-					}, true, socket)
-				}
+				_inventory.set(player.id, {
+					item_grabbable: item.id,
+				}, true, socket)
 				lastItemId = item.id
 				HitController.set(HIT_ID, true)
+				resetItemGrabbable = false
 			} else {
 				HitController.set(HIT_ID, false)
-				_items.set(item.id, {
-					grabbable: false,
-				}, true, socket)
 			}
 		}, this)
-		ItemsController.setLastPlayerItemHit(player.id, lastItemId)
+		if (resetItemGrabbable)
+			_inventory.set(player.id, {
+				item_grabbable: null,
+			}, true, socket)
 	},
 
 	updateItems: function ()
@@ -888,18 +885,6 @@ var GameUpdateController = {
 
 
 var ItemsController = {
-
-	lastPlayerItemHitList: {},
-
-	setLastPlayerItemHit: function (player_id, item_id)
-	{
-		this.lastPlayerItemHitList[player_id] = item_id
-	},
-
-	checkLastPlayerItemHit: function (player_id, item_id)
-	{
-		return this.lastPlayerItemHitList.hasOwnProperty(player_id) && this.lastPlayerItemHitList[player_id] == item_id
-	},
 
 	new: function(id, item)
 	{
@@ -924,7 +909,7 @@ var ItemsController = {
 	isPlayerAbleToGrab: function(player_id, item_id)
 	{
 		var HIT_ID = HitController.getId(player_id, item_id)
-		return HitController.get(HIT_ID) && this.checkLastPlayerItemHit(player_id, item_id)
+		return HitController.get(HIT_ID)
 	},
 
 	grabAttempt: function (socket, model)

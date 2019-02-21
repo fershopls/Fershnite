@@ -1072,7 +1072,7 @@ var ItemController = {
 				// TODO fix invisible sprite
 				// this.getSpritesheet(id).get().update()
 			
-				if (item.grabbable)
+				if (_inventory.get(PlayerController.id, 'item_grabbable') == item.id)
 				{
 					_items.set(item.id, {
 						grabbed_by: true
@@ -1114,6 +1114,11 @@ var ItemController = {
 		return id
 	},
 
+	isItemGrabbable: function(id)
+	{
+		return _inventory.get(PlayerController.id, 'item_grabbable')  == id
+	},
+
 	draw: function(ctx) {
 		var items = _items.get()
 		
@@ -1122,7 +1127,7 @@ var ItemController = {
 			SpriteHandler.setSprite(id, sprite_id)
 			DrawHandler.drawSprite(id, this.getDrawModel(item))
 			
-			if (item.grabbable)
+			if (this.isItemGrabbable(id))
 				this.drawGrabbableText(ctx, item)
 
 		}, this)
