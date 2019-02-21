@@ -356,6 +356,11 @@ var AimController = {
 		return this.getAngleFromTo(pivot_x, pivot_y, mouse_x, mouse_y)
 	},
 
+	lineToAngleWithRelativeBloom: function(pivot, length, angle, abs_bloom, rel_bloom)
+	{
+		return this.getToByAngle(pivot.X, pivot.Y, length, angle + (abs_bloom/2 * rel_bloom))
+	},
+
 	draw: function(ctx)
 	{
 		var weapon = WeaponController.getCurrentWeapon()
@@ -366,11 +371,6 @@ var AimController = {
 	    
 	    this.drawCursor(ctx, fillStyle)
 	    this.drawBloomArea(ctx, weapon)
-	},
-
-	lineToAngleWithRelativeBloom: function(pivot, length, angle, abs_bloom, rel_bloom)
-	{
-		return this.getToByAngle(pivot.X, pivot.Y, length, angle + (abs_bloom/2 * rel_bloom))
 	},
 
 	drawBloomArea: function (ctx, weapon)

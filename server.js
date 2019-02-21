@@ -178,6 +178,39 @@ var HitMathHelper = {
             point_b.X + point_b.width, point_b.Y + point_b.height);
 	},
 
+	
+
+	getAngleFromTo: function (x, y, to_x, to_y)
+	{
+		// Determine angle
+		var op = y - to_y
+		var ad = x - to_x
+		angle = Math.atan(op / ad)
+
+		// Determine side of the shoot
+		if (x > to_x)
+			angle += Math.PI
+
+		return angle // RADIANS
+	},
+
+	getToByAngle: function (x, y, len, angle)
+	{
+		return {X:x + len * Math.cos(angle), Y: y + len * Math.sin(angle)}
+	},
+
+	getAngleBetween: function (mouse_x, mouse_y, pivot_x, pivot_y)
+	{
+		pivot_x = pivot_x
+		pivot_y = pivot_y
+		return this.getAngleFromTo(pivot_x, pivot_y, mouse_x, mouse_y)
+	},
+
+	lineToAngleWithRelativeBloom: function(pivot, length, angle, abs_bloom, rel_bloom)
+	{
+		return this.getToByAngle(pivot.X, pivot.Y, length, angle + (abs_bloom/2 * rel_bloom))
+	},
+
 }
 
 
@@ -275,7 +308,7 @@ function Weapon (settings) {
     	// Return bloom in RADIANS
     	bloom: function (weapon, bloom)
     	{
-    		bloom = weapon.updateBloom(weapon, bloom)
+    		// bloom = weapon.updateBloom(weapon, bloom)
     		return bloom * Math.PI / 180
     	},
     }
@@ -294,6 +327,178 @@ function Weapon (settings) {
 
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var ShootController = {
+	stack: {},
+	lifetime: 800,
+	
+	socketShootSend: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
+	{
+		Socket.io.emit('shootClick', shooter_id, x, y, mouse_x, mouse_y, weapon_id)
+	},
+	
+	socketShootDraw: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
+	{
+		ShootController.create(shooter_id, x, y, mouse_x, mouse_y, WeaponController.getWeapon(weapon_id))
+	},
+
+	create: function(shooter_id, x, y, click_x, click_y, weapon)
+	{	
+		var root_angle = HitMathHelper.getAngleBetween(click_x, click_y, x, y);
+		var perdigons = weapon.get('perdigons')
+		var bloom = weapon.get('bloom')
+		var length = weapon.get('length')
+
+		var bullets = [];
+		for (i = 1; i <= perdigons; i++)
+		{
+			var angle = root_angle
+			angle -= bloom /2
+			angle += bloom * Math.random()
+			
+			to = HitMathHelper.getToByAngle(x, y, length, angle)
+			var bullet = this.createBullet(shooter_id, x, y, to.X, to.Y, weapon)
+			bullets.push(bullet)
+		}
+
+		// HitController.checkBulletsHit(bullets)
+	},
+
+	createBullet: function (shooter_id, x, y, to_x, to_y, weapon)
+	{
+		shoot = {
+			id: this.makeUniqueId(),
+			shooter_id: shooter_id,
+			from: {X:x, Y:y},
+			to: {X:to_x, Y:to_y},
+			time: Date.now(),
+			alive: true,
+			weapon: weapon,
+		}
+
+		this.stack[shoot.id] = shoot
+		return shoot;
+	},
+
+	killBullets: function (bullets)
+	{
+		for (id in bullets)
+		{
+			if (!bullets.hasOwnProperty(id))
+				continue
+
+			this.killById(id)
+		}
+	},
+
+	killById: function(id)
+	{
+		if (this.stack.hasOwnProperty(id))
+		{
+			this.stack[id].alive = false
+		}
+	},
+
+	deleteById: function(id)
+	{
+		if (this.stack.hasOwnProperty(id))
+		{
+			delete this.stack[id]
+		}
+	},
+
+	makeUniqueId: function()
+	{
+		return Date.now()+"_"+(Math.floor(Math.random()*10000)+10000)
+	},
+
+	update: function (dt)
+	{
+		for (var id in this.stack) {
+			if (this.stack.hasOwnProperty(id)) {
+	        	this.loopUpdate(id, this.stack[id], dt);
+			}
+		}
+	},
+
+	draw: function (ctx)
+	{
+		for (var id in this.stack) {
+			if (this.stack.hasOwnProperty(id)) {
+	     	   this.loopDraw(ctx, id, this.stack[id]);
+			}
+		}
+	},
+
+	loopUpdate: function (id, shoot, dt)
+	{
+		if(this.getBulletLifeTime() != 0 && shoot.time + this.getBulletLifeTime() < Date.now())
+	    {
+			this.deleteById(id)
+	    }
+	},
+
+	getBulletLifeTime: function ()
+	{
+		// shoot.weapon.get('lifetime')
+		return Core.debug?1000:50
+	},
+
+	loopDraw: function (ctx, id, shoot)
+	{
+		if (Core.debug)
+			this.drawTrigometricThing(ctx, shoot);
+		var weapon = shoot.weapon;
+		alpha = 1 - (Date.now() - shoot.time) / this.getBulletLifeTime()
+		alpha = 1
+
+		DrawHandler.draw(0, 0, function(ctx){
+			ctx.beginPath();
+			var max = this.getBulletLifeTime()
+			var min = Date.now() - shoot.time
+			ctx.lineWidth = (1 / max * min) * 8
+			ctx.strokeStyle = 'rgba(255, 235, 59, '+alpha+')'//weapon.getRGBAColor(alpha);
+			ctx.moveTo(shoot.from.X, shoot.from.Y);
+			ctx.lineTo(shoot.to.X, shoot.to.Y);
+			ctx.stroke();
+		}, this)
+
+	},
+
+	drawTrigometricThing: function (ctx, shoot)
+	{
+		DrawHandler.draw(0, 0, function(){
+			this.beginPath();
+			this.strokeStyle = '#ddd';
+			this.moveTo(shoot.from.X, shoot.from.Y);
+			this.lineTo(shoot.to.X, shoot.to.Y);
+	
+			this.moveTo(shoot.from.X, shoot.from.Y);
+			this.lineTo(shoot.to.X, shoot.from.Y);
+	
+			this.moveTo(shoot.to.X, shoot.from.Y);
+			this.lineTo(shoot.to.X, shoot.to.Y);
+			this.stroke();
+		})
+	},
+}
 
 
 
@@ -324,7 +529,6 @@ var WeaponController = {
 		if (typeof value != 'undefined')
 			_weapon.set(key, value)
 
-		console.log(key, _weapon.get(this.id, key))
 		return _weapon.get(this.id, key)
 	},
 
@@ -356,16 +560,21 @@ var WeaponController = {
 		return this.isTimeToReloadAllowed() && this.getCurrentWeapon().get('ammoLoaded') < this.getCurrentWeapon().get('ammoCharger')
 	},
 
+	getPlayerCenter: function (player_id)
+	{
+		var player = _players.get(player_id)
+		return {
+			X: player.X + player.width/2,
+			Y: player.Y + player.height/2,
+		}
+	},
+
 	shoot: function(id, model)
 	{
 		// Todo make this values safe
 		var clickPoint = model.value
 
 		this.setId(id)
-
-		if (this.isShootAllowed())
-			console.log('SHOOT SHIT!')
-		return ;
 
 		if (!this.isShootAllowed())
 			return false
@@ -376,8 +585,9 @@ var WeaponController = {
 		if (ammoLoaded > 0 || ammoLoaded == -1)
 		{
 
+			var player_center = this.getPlayerCenter(id)
 			ShootController.create(id,
-				DrawHandler.center(player).X, DrawHandler.center(player).Y,
+				player_center.X, player_center.Y,
 				clickPoint.X, clickPoint.Y,
 				WeaponController.getCurrentWeapon())
 			if (ammoLoaded != -1)
@@ -413,10 +623,9 @@ var WeaponController = {
 				weapon.set('ammoLoaded', ammo)
 				InventoryController.set('ammo', id, 0)
 			}
-
-			Core.sound.weapon.play()
+			console.log('RELOADING GUN')
 		} else {
-			Core.sound.fire.emptyGun.play();
+			console.log('EMPTY GUN')
 		}
 	},
 
@@ -660,6 +869,15 @@ var InventoryController = {
 			_inventory.create(player_id, {})
 		}
 		return _inventory.get(player_id)
+	},
+
+	has: function (player_id, item)
+	{
+		playerInventory = this.get(player_id)
+		var items = playerInventory.items
+		if (!items.hasOwnProperty(item))
+			return false
+		return items[item]
 	},
 
 	setCurrentWeapon: function (player_id, item_id)

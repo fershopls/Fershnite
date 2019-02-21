@@ -212,12 +212,10 @@ var ModuleMaster = {
 
 		if (model.model_id == 'updateSingleProperty')
 		{
-			// console.log('GET', model.key, model.value)
 			var keyValue = {}
 			keyValue[model.key] = model.value
-			console.log(model.module_id, model.data_id, keyValue, false)
+			// console.log(model.module_id, model.data_id, keyValue, false)
 			this.set(model.data_id, keyValue, false)
-			// console.log('PRNT', model.data_id, this.get(model.key, null, model.data_id))
 		}
 		
 		if (model.model_id == 'updateDataIdProperties')
