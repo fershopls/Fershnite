@@ -97,12 +97,17 @@ var ModuleMaster = {
 	setSingleProperty: function (data_id, key, value, sync, socket)
 	{
 		var property = this.getProperty(key)
+
+		if (this.get(data_id, key) == 'weapon.shotgun')
+			console.log('debug')
+
 		if (this.get(data_id, key) == value)
 			return false
-
+		
 		if (property)
 		{
 			var beforeSet = this.getData().get(key, data_id)
+
 			this.getData().dimension(data_id, function (){
 				this.set(key, value)
 			})
@@ -213,6 +218,7 @@ var ModuleMaster = {
 			// console.log('GET', model.key, model.value)
 			var keyValue = {}
 			keyValue[model.key] = model.value
+			console.log(model.module_id, model.data_id, keyValue, false)
 			this.set(model.data_id, keyValue, false)
 			// console.log('PRNT', model.data_id, this.get(model.key, null, model.data_id))
 		}

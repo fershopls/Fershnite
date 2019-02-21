@@ -98,6 +98,7 @@ var _inventory = master.create('inventory', [
 			}),
 		// TODO change this current to weapon.currentId
 		master.field('current', {
+				default: null,
 				sync: true
 			}),
 	])
@@ -359,7 +360,10 @@ var WeaponController = {
 
 		this.setId(id)
 
-		console.log(this.isShootAllowed()?'SHOOT SHIT!':'not shoot')
+		if (this.isShootAllowed())
+			console.log('SHOOT SHIT!')
+		return ;
+
 		if (!this.isShootAllowed())
 			return false
 		
@@ -368,11 +372,6 @@ var WeaponController = {
 		var ammoLoaded = this.getCurrentWeapon().get('ammoLoaded')
 		if (ammoLoaded > 0 || ammoLoaded == -1)
 		{
-			// Send shoot
-			ShootController.socketShootSend(id,
-				DrawHandler.center(player).X, DrawHandler.center(player).Y,
-				clickPoint.X, clickPoint.Y,
-				WeaponController.getCurrentWeaponId())
 
 			ShootController.create(id,
 				DrawHandler.center(player).X, DrawHandler.center(player).Y,
@@ -646,12 +645,13 @@ var InventoryController = {
 	{
 		playerInventory = this.get(player_id)
 		playerInventory.items[item_id] = qty
-		_inventory.set(player_id, playerInventory)
+		_inventory.set(player_id, {
+			items: playerInventory.items,
+		})
 	},
 
 	get: function (player_id)
 	{
-		console.log(_inventory.get(player_id, 'items'))
 		if (!_inventory.get(player_id, 'items'))
 		{
 			_inventory.create(player_id, {})
@@ -661,9 +661,9 @@ var InventoryController = {
 
 	setCurrentWeapon: function (player_id, item_id)
 	{
-		playerInventory = this.get(player_id)
-		playerInventory.current = item_id
-		_inventory.set(player_id, playerInventory)
+		_inventory.set(player_id, {
+			current: item_id,
+		})
 	},
 
 	getNextStackItem: function(stack_id, item_id)
