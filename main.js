@@ -129,7 +129,7 @@ function SpriteSheet (sprites, prefix)
 				continue
 
 			var full_id = this.getPrefix() + sprites[id]
-			var sprite = SpriteController.get(full_id)
+			var sprite = SpriteHandler.sprite(full_id)
 			this.stack[full_id] = sprite
 		}
 	}
@@ -158,7 +158,7 @@ function SpriteSheet (sprites, prefix)
 		
 		var x = this.stack[current_id]
 		if (typeof x == 'undefined')
-			console.log('get', current_id)
+			console.log('get undefined', current_id)
 		return x
 	},
 
@@ -178,51 +178,107 @@ function SpriteSheet (sprites, prefix)
 =            #SPRITE CONTROLLER                =============================================
 ==========================================================================================*/
 
-var SpriteController = {
+var SpriteHandler = Object.assign({}, StackMaster, {
 
 	stack: {},
+	sprites: {},
+	spritesheets: {},
+
+	getStack: function()
+	{
+		return this.stack
+	},
 
 	init: function()
 	{
-		this.addMany({
-			'weapon.shotgun': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
-	  		'weapon.rifle': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
-	  		'weapon.smg': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
-	  		'weapon.hands': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
-
-		  	'player.stand': new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0]),
-		  	'player.walk': new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
-
-	  		'enemy.stand': new Sprite('assets/player.png', [32*0, 32*3], [32, 32], 6, [0]),
-
-	  		'ammo.box': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [4], 'vertical'),
-		})
+		this.sprites = this.getAvailableSprites()
+		this.spritesheets = this.getAvailableSpritesheets()
 	},
 
-	addMany: function(sprites)
+	getAvailableSpritesheets: function ()
 	{
-		for (id in sprites)
-		{
-			if (!sprites.hasOwnProperty(id))
-				continue
-			this.add(id, sprites[id])
+		// TODO FIX SAME SPRITESHEET FOR ALL OBJECTS TYPE
+		return {
+			'player': new SpriteSheet([
+					'player.stand',
+					'player.walk'
+				]),
+			'item': new SpriteSheet([
+					'weapon.shotgun',
+					'weapon.rifle',
+					'weapon.smg',
+					'weapon.hands',
+					'ammo.box',
+				]),
 		}
 	},
 
-	add: function(id, sprite)
+	getAvailableSprites: function ()
 	{
-		this.stack[id] = sprite
+		return {
+			'weapon.shotgun': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [1], 'vertical'),
+			'weapon.rifle': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [0], 'vertical'),
+			'weapon.smg': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [2], 'vertical'),
+			'weapon.hands': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [3], 'vertical'),
+
+			'player.stand': new Sprite('assets/player.png', [0, 0], [32, 32], 6, [0]),
+			'player.walk': new Sprite('assets/player.png', [0, 0], [32, 32], 30, [0, 1, 2, 3, 2, 1]),
+
+			'ammo.box': new Sprite('assets/gun.png', [64*2, 0], [64*2, 64], 1, [4], 'vertical'),
+		}
 	},
 
-	get: function(id)
+	sprite: function(id)
 	{
-		if (this.stack.hasOwnProperty(id))
-			return this.stack[id]
-		console.log("SPRITE 404",id,'in',Object.keys(this.stack))
+		if (this.sprites.hasOwnProperty(id))
+			return this.sprites[id]
+		console.log("SPRITE missing",id,'in',Object.keys(this.sprites))
 		return false
-	}
+	},
 
-}
+	spritesheet: function(id)
+	{
+		if (this.spritesheets.hasOwnProperty(id))
+			return this.spritesheets[id]
+		console.log("SPRITESHEET missing",id,'in',Object.keys(this.spritesheets))
+		return false
+	},
+
+	getObjectIdSpritesheet: function(object_id, spritesheet_id)
+	{
+		if (!this.get(object_id))
+			this.register(object_id, spritesheet_id)
+		
+			return this.get(object_id)
+	},
+
+	register: function (object_id, spritesheet_id)
+	{
+		this.set(object_id, this.spritesheet(spritesheet_id))
+	},
+
+	setSprite: function (object_id, sprite_spritesheet_id)
+	{
+		if (this.get(object_id))
+			this.get(object_id).set(sprite_spritesheet_id)
+	},
+	
+	updateSprite: function (object_id, dt)
+	{
+		if (this.get(object_id))
+			this.get(object_id).get().update(dt)
+	},
+
+	draw: function(object_id, x, y, spritesheet_id)
+	{
+		var spritesheet = this.getObjectIdSpritesheet(object_id, spritesheet_id)
+
+		DrawHandler.draw(x, y, function(){
+			spritesheet.get().render(this)
+		})
+	},
+
+})
 
 
 
@@ -918,7 +974,7 @@ var DrawEntity = {
 			drawX: 0,
 			drawY: 0,
 			color: "#00A",
-			sprite: new SpriteSheet(),
+			sprite: null,
 
 			center: function(){
 				return {
@@ -932,11 +988,11 @@ var DrawEntity = {
   	{
   		var draw = Object.assign({}, this.defaultSettings, settings)
   		
-  		if (draw.sprite.get())
+  		if (draw.sprite)
   		{
 				DrawHandler.draw(draw.X + draw.drawX, draw.Y + draw.drawY, function(){
 					this.scale(draw.scaleX, draw.scaleY)
-					draw.sprite.get().render(this)
+					SpriteHandler.draw(id, 0, 0, draw.sprite)
 				})
   		} else {
 				DrawHandler.draw(draw.X, draw.Y, function(){
@@ -1101,10 +1157,7 @@ var ItemController = {
 	spritesheets: {},
 	getSpritesheet: function (id)
 	{
-		if (!this.spritesheets.hasOwnProperty(id))
-			this.spritesheets[id] = new SpriteSheet([id])
-		
-		return this.spritesheets[id]
+		return false
 	},
 
 	getDrawEntityModel: function(item) {
@@ -1121,10 +1174,11 @@ var ItemController = {
 			scaleY: 0.49,
 			color: 'red',
 			// TODO fix creating a spritesheet everytime
-			sprite: this.getSpritesheet(id),
+			sprite: 'item',
 	  	}
-	  	if (id != this.id)
-	  		drawEntityModel.color = 'red'
+	  	if (item.id != this.id)
+				drawEntityModel.color = 'red'
+				
 	  	return drawEntityModel
 	},
 
@@ -1510,7 +1564,6 @@ var WeaponController = {
 
 var PlayerController = {
   id: null,
-  sprite: null,
   movement: {
   	x_speed: 0, // current speed
   	y_speed: 0,
@@ -1538,8 +1591,7 @@ var PlayerController = {
   
   init: function ()
   {
-  	// url, pos, size, speed, frames, dir, once
-  	this.sprite = new SpriteSheet(['stand', 'walk'], 'player')
+		//
   },
 
   update: function(dt){
@@ -1638,14 +1690,14 @@ var PlayerController = {
     }
 
     if (this.movement.x_speed != 0 || this.movement.y_speed != 0)
-    	this.sprite.set('walk')
+    	SpriteHandler.setSprite (this.id, 'walk')
     else
-    	this.sprite.set('stand')
+			SpriteHandler.setSprite (this.id, 'stand')
 	
-    this.sprite.get().update(dt);
+    SpriteHandler.updateSprite (this.id, dt);
 
 
-	this.dontFallOut(dt);
+		this.dontFallOut(dt);
   	
   	this.updateAllowItemGrabbable()
   },
@@ -1673,7 +1725,7 @@ var PlayerController = {
   capturedPoint: {},
   captureCurrentPoint: function ()
   {
-	this.capturedPoint = this.getPoint(_players.get(this.id))
+		this.capturedPoint = this.getPoint(_players.get(this.id))
   },
 
   thereIsPointsDifference: function(point)
@@ -1684,14 +1736,14 @@ var PlayerController = {
   
   getCurrentPlayer: function()
   {
-	return this.getDrawEntityModel(this.id, _players.get(this.id))
+		return this.getDrawEntityModel(this.id, _players.get(this.id))
   },
   
   center: function(item) {
-	return {
-		X: item.X + this.width/2,
-		Y: item.Y + this.height/2,
-	}
+		return {
+			X: item.X + this.width/2,
+			Y: item.Y + this.height/2,
+		}
   },
 
   getDrawEntityModel: function(id, player) {
@@ -1720,7 +1772,8 @@ var PlayerController = {
   	var players = _players.get()
   	
   	StackMaster.loop(players, function(id, player){
-		DrawEntity.draw('players', ctx, this.getDrawEntityModel(id, player))
+			var drawModel = this.getDrawEntityModel(id, player)
+			SpriteHandler.draw(id, drawModel.X, drawModel.Y, 'player')
   	}, this)
   },
 
@@ -2206,7 +2259,6 @@ $(document).ready(function(){
 	resources.onReady(function(){
 		Controllers = [
 				MouseController,
-				SpriteController,
 				HitController,
 				InventoryController,
 
@@ -2223,6 +2275,8 @@ $(document).ready(function(){
 				TextController,
 				UIController,
 			]
+		
+		SpriteHandler.init()
 		Socket.init()
 	});
 });
