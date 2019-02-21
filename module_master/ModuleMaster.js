@@ -59,21 +59,56 @@ var ModuleMaster = {
 		return this.values
 	},
 
+	getAllValues: function ()
+	{
+		var valuesWithDefaults = this.values.get()
+
+		this.values.for(function(id)
+		{
+			valuesWithDefaults[id] = this.getValuesWithDefaultFor(id)
+		}, this)
+
+		return valuesWithDefaults
+	},
+
+	getValuesWithDefault: function (id)
+	{
+		var values = {}
+		StackMaster.loop(Object.keys(this.properties()), function(i, property_id){
+			if (!this.values.get(id).hasOwnProperty(property_id))
+				values[property_id] = this.getDefaultPropertyValue(property_id)
+		}, this)
+		return values
+	},
+
+	getValueFromId: function (key, id)
+	{
+		this.values.dimension(id)
+		var value = this.getPropertyValue(key)
+		this.values.dimension()
+		return value
+	},
+
+	getPropertyValue: function (key)
+	{
+		var property = this.getProperty(key)
+		var value = this.values.get(key)
+		return value == null? property.default:value
+	},
+
+	// get ('lastTimeFired', null, id)
 	get: function(id, default_return, dimension)
 	{
+		var value;
+
 		if (typeof id == 'undefined')
-			return this.values.get()
-
-		if (typeof dimension != 'undefined')
-			this.values.dimension(dimension)
+			value = this.getAllValues()
+		else if (typeof dimension != 'undefined')
+			value = this.getValueFromId(id, dimension)
+		else
+			value = this.getValuesWithDefault(id)
 		
-		if (this.values.has(id))
-			var value = def(this.values.get(id), default_return)
-
-		if (typeof dimension != 'undefined')
-			this.values.dimension()
-		
-		return value
+		return def(value, default_return)
 	},
 
 	remove: function (data_id, sync){
@@ -134,7 +169,6 @@ var ModuleMaster = {
 	{
 		var syncProperties = []
 		StackMaster.loop(this.properties(), function(id, property){
-			console.log(property)
 			if (property.sync)
 				syncProperties.push(id)
 		}, this)
@@ -247,6 +281,8 @@ var ModuleMaster = {
 		if (model.model_id == 'updateSingleProperty')
 		{
 			// console.log('TC > update', model.data_id, model.key)
+			if (!socket)
+				console.log('missing socket')
 			socket.emit('sync', model)
 		}
 		

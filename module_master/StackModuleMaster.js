@@ -31,7 +31,9 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 		StackMaster.loop(modules, function (module_id, properties) {
 			var instancedProperties = []
 			StackMaster.loop(properties, function(index, property_id) {
-				instancedProperties.push(this.field(property_id, {sync: true}))
+				instancedProperties.push(this.field(property_id, {
+					sync: true,
+				}))
 			}, this)
 			this.create(module_id, instancedProperties)
 		}, this)

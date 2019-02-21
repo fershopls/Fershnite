@@ -1102,7 +1102,6 @@ var ItemController = {
 				width:48,
 				height:32,
 				paddingX: -8,
-				paddingY: 0,
 				scaleX: 0.49,
 				scaleY: 0.49,
 				color: 'blue',
@@ -1260,10 +1259,10 @@ var WeaponController = {
 	data: {
 		current: null,
 		lastSwitchTime: 0,
-	  	lastWeapon: null,
-	  	minSwitchTime: 700,
-	  	lastTimeFired: 0,
-	  	lastTimeReloaded: 0,
+		lastWeapon: null,
+		minSwitchTime: 700,
+		lastTimeFired: 0,
+		lastTimeReloaded: 0,
 	},
 	weapons: [],
 
@@ -1307,7 +1306,7 @@ var WeaponController = {
 
 	shoot: function(dt)
 	{
-	  	if (!this.isShootAllowed())
+		if (!this.isShootAllowed())
 			return false
 		
 		this.data.lastTimeFired = Date.now()
@@ -1594,7 +1593,13 @@ var PlayerController = {
     // Shoot thing
     if (input.isDown("SPACE") || MouseController.click)
     {
-		WeaponController.shoot(dt);
+			_control.set(PlayerController.id, {
+				click: {
+					X: MouseController.X,
+					Y: MouseController.Y,
+				}
+			})
+			WeaponController.shoot(dt);
     }
 
     // Change weapon
@@ -2241,6 +2246,7 @@ var startSyncRegisterModules = (function(modules){
 
 	StackModuleMaster.loadModules(modules)
 
+	_control = StackModuleMaster.get('control')
 	_players = StackModuleMaster.get('players')
 	_items = StackModuleMaster.get('items')
 	_inventory = StackModuleMaster.get('inventory')
