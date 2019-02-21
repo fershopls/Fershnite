@@ -5,7 +5,6 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var master = require('./module_master/StackModuleMaster.js')
 
-var Property = require('./module_master/Property.js')
 var ModelMaster = require('./module_master/ModelMaster.js');
 var StackMaster = require('./module_master/StackMaster.js');
 
@@ -22,12 +21,26 @@ master.start(false, function(){
 })
 
 var _players = master.create('players', [
-		new Property('id', null),
-		new Property('X', 0, true, true),
-		new Property('Y', 0, true, true),
-		new Property('width', 32),
-		new Property('height', 32),
-		new Property('socket', 0)
+		master.field('id'),
+		master.field('X', {
+				default_value: 0,
+				allow_sync: true,
+				broadcastable: true
+			}),
+		master.field('Y', {
+				default_value: 0,
+				allow_sync: true,
+				broadcastable: true
+			}),
+		master.field('width', {
+				default_value:32
+			}),
+		master.field('height', {
+				default_value:32
+			}),
+		master.field('socket', {
+				default_value: 0
+			})
 	])
 
 var checkGrabbedBy = function(socket, model)
@@ -36,19 +49,44 @@ var checkGrabbedBy = function(socket, model)
 }
 
 var _items = master.create('items', [
-		new Property('id', null, true),
-		new Property('X', 0, true),
-		new Property('Y', 0, true),
-		new Property('grabbable', false, true),
-		new Property('grabbed_by', null, true, false, checkGrabbedBy),
-		new Property('width', 48),
-		new Property('height', 32),
+		master.field('id', {
+				allow_sync: true
+			}),
+		master.field('X', {
+				default_value: 0,
+				allow_sync: true
+			}),
+		master.field('Y', {
+				default_value: 0,
+				allow_sync: true
+			}),
+		master.field('grabbable', {
+				default_value: false,
+				allow_sync: true
+			}),
+		master.field('grabbed_by', {
+				allow_sync: true,
+				updateValidator: checkGrabbedBy,
+			}),
+		master.field('width', {
+				default_value: 48
+			}),
+		master.field('height', {
+				default_value: 32
+			}),
 	])
 
 var _inventory = master.create('inventory', [
-		new Property('id', null, true),
-		new Property('items', {}, true),
-		new Property('current', null, true),
+		master.field('id', {
+				allow_sync: true
+			}),
+		master.field('items', {
+				default_value: {},
+				allow_sync: true
+			}),
+		master.field('current', {
+				allow_sync: true
+			}),
 	])
 
 

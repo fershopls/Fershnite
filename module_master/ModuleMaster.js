@@ -25,8 +25,7 @@ var ModuleMaster = {
 
 	registerProperty: function(property)
 	{
-		if (property.hasOwnProperty('id')
-			&& property instanceof Property)
+		if (property.hasOwnProperty('id'))
 			this.properties()[property.id] = property
 	},
 
@@ -136,6 +135,7 @@ var ModuleMaster = {
 	{
 		var syncProperties = []
 		StackMaster.loop(this.properties(), function(id, property){
+			console.log(property)
 			if (property.allow_sync)
 				syncProperties.push(id)
 		}, this)

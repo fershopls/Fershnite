@@ -31,7 +31,7 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 		StackMaster.loop(modules, function (module_id, properties) {
 			var instancedProperties = []
 			StackMaster.loop(properties, function(index, property_id) {
-				instancedProperties.push(new Property(property_id, null, true))
+				instancedProperties.push(this.field(property_id, {allow_sync: true}))
 			}, this)
 			this.create(module_id, instancedProperties)
 		}, this)
@@ -46,6 +46,23 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 		var module = this.initModule(id, properties)
 		this.add(id, module)
 		return module
+	},
+
+	getDefaultFieldSettings: function()
+	{
+		return {
+			default_value: null,
+			allow_sync: false,
+			broadcastable: false,
+			updateValidator: null,
+		}
+	},
+
+	field: function(id, settings)
+	{
+		var defaultSettings = this.getDefaultFieldSettings()
+		var field = Object.assign({}, defaultSettings, settings, {id: id})
+		return field
 	},
 
 	initModule: function (id, properties)
