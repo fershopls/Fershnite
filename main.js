@@ -95,11 +95,8 @@ var Core = {
 
 	draw: function (ctx, canvas)
 	{
-		ctx.clearRect(0, 0, Core.data.canvas.width, Core.data.canvas.height);
-		
-		ctx.fillStyle = '#a2bf4e'
-		ctx.fillRect(0, 0, Core.data.canvas.width, Core.data.canvas.height);
-		this.drawGrid(ctx)
+		DrawHandler.clear()
+		DrawHandler.drawGrid()
 		
 		for (var id in this.modules) {
 			if (this.modules.hasOwnProperty(id)) {
@@ -109,32 +106,6 @@ var Core = {
 				}
 			}
 		}
-	},
-
-	drawGrid: function(ctx)
-	{
-		ctx.save()
-		ctx.translate(-10,-15)
-		ctx.strokeStyle = '#b8d763'
-		var factor = 48
-		factor = Math.sqrt(factor**2 + factor**2)
-		for (i = -10; i < 20; i++)
-		{
-			var X = i*factor
-			ctx.moveTo(X, 0)
-			var to = AimController.getToByAngle(X,0, this.data.canvas.width, 35*Math.PI/180)
-			ctx.lineTo(to.X, to.Y)
-			ctx.stroke()
-		}
-		for (i = 0; i < 30; i++)
-		{
-			var X = i*factor
-			ctx.moveTo(X, 0)
-			var to = AimController.getToByAngle(X,0, this.data.canvas.width, 145*Math.PI/180)
-			ctx.lineTo(to.X, to.Y)
-			ctx.stroke()
-		}
-		ctx.restore()
 	},
 
 
@@ -367,41 +338,43 @@ var AimController = {
 		}
 
 		// Draw Hit Tests Lines
-		ctx.beginPath()
-		for (id in hitTests)
-		{
-			if (hitTests.hasOwnProperty(id))
+		DrawHandler.draw(0,0, function(ctx){
+			ctx.beginPath()
+			for (id in hitTests)
 			{
-				var ht = hitTests[id]
-				ctx.moveTo(ht.from.X, ht.from.Y);
-				ctx.lineTo(ht.to.X, ht.to.Y);
+				if (hitTests.hasOwnProperty(id))
+				{
+					var ht = hitTests[id]
+					ctx.moveTo(ht.from.X, ht.from.Y);
+					ctx.lineTo(ht.to.X, ht.to.Y);
+				}
 			}
-		}
-		if (Core.debug)
-		{
-			ctx.strokeStyle = 'white'
-			ctx.stroke()
-		}
-		
-		// Draw area shape
-		ctx.beginPath()
-		ctx.fillStyle = 'rgba(255,255,255,0.25)'
-		ctx.moveTo(this.getPivot().X, this.getPivot().Y);
-		ctx.lineTo(to[0].X, to[0].Y);
-		ctx.lineTo(to[1].X, to[1].Y);
-		ctx.lineTo(to[2].X, to[2].Y);
-		ctx.lineTo(this.getPivot().X, this.getPivot().Y);
-		if (Core.settings.autoShoot || Core.debug)
-		{
-			if (HitController.checkLinesEnemiesHit(hitTests))
+			if (Core.debug)
 			{
-				if (Core.settings.autoShoot)
-					WeaponController.shoot()
-				if (Core.debug)
-					ctx.fillStyle = 'rgba(255,0,0,0.5)'
+				ctx.strokeStyle = 'white'
+				ctx.stroke()
 			}
-		}
-		ctx.fill()
+			
+			// Draw area shape
+			ctx.beginPath()
+			ctx.fillStyle = 'rgba(255,255,255,0.25)'
+			ctx.moveTo(this.getPivot().X, this.getPivot().Y);
+			ctx.lineTo(to[0].X, to[0].Y);
+			ctx.lineTo(to[1].X, to[1].Y);
+			ctx.lineTo(to[2].X, to[2].Y);
+			ctx.lineTo(this.getPivot().X, this.getPivot().Y);
+			if (Core.settings.autoShoot || Core.debug)
+			{
+				if (HitController.checkLinesEnemiesHit(hitTests))
+				{
+					if (Core.settings.autoShoot)
+						WeaponController.shoot()
+					if (Core.debug)
+						ctx.fillStyle = 'rgba(255,0,0,0.5)'
+				}
+			}
+			ctx.fill()
+		}, this)
 	},
 
 	createHitTestLine: function(from, to)
@@ -411,11 +384,13 @@ var AimController = {
 
 	drawCursor: function (ctx, fillStyle)
 	{
-		ctx.beginPath();
-		ctx.fillStyle = fillStyle
+		DrawHandler.draw(0,0, function (){
+			ctx.beginPath();
+			ctx.fillStyle = fillStyle
 	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
 	    ctx.fillRect(MouseController.X-1, MouseController.Y-3-10, 2, 8);
 	    ctx.fillRect(MouseController.X-1, MouseController.Y-3 +8, 2, 8);
+		})
 	},
 
 }
@@ -550,36 +525,38 @@ var ShootController = {
 	{
 		if (Core.debug)
 			this.drawTrigometricThing(ctx, shoot);
-    	var weapon = shoot.weapon;
-    	alpha = 1 - (Date.now() - shoot.time) / this.getBulletLifeTime()
-    	alpha = 1
+		var weapon = shoot.weapon;
+		alpha = 1 - (Date.now() - shoot.time) / this.getBulletLifeTime()
+		alpha = 1
 
-    	ctx.save()
-		ctx.beginPath();
-		var max = this.getBulletLifeTime()
-		var min = Date.now() - shoot.time
-		ctx.lineWidth = (1 / max * min) * 8
-		ctx.strokeStyle = 'rgba(255, 235, 59, '+alpha+')'//weapon.getRGBAColor(alpha);
-		ctx.moveTo(shoot.from.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.to.Y);
-		ctx.stroke();
-		ctx.restore()
+		DrawHandler.draw(0, 0, function(ctx){
+			ctx.beginPath();
+			var max = this.getBulletLifeTime()
+			var min = Date.now() - shoot.time
+			ctx.lineWidth = (1 / max * min) * 8
+			ctx.strokeStyle = 'rgba(255, 235, 59, '+alpha+')'//weapon.getRGBAColor(alpha);
+			ctx.moveTo(shoot.from.X, shoot.from.Y);
+			ctx.lineTo(shoot.to.X, shoot.to.Y);
+			ctx.stroke();
+		}, this)
 
 	},
 
 	drawTrigometricThing: function (ctx, shoot)
 	{
-		ctx.beginPath();
-		ctx.strokeStyle = '#ddd';
-		ctx.moveTo(shoot.from.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.to.Y);
-
-		ctx.moveTo(shoot.from.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.from.Y);
-
-		ctx.moveTo(shoot.to.X, shoot.from.Y);
-		ctx.lineTo(shoot.to.X, shoot.to.Y);
-		ctx.stroke();
+		DrawHandler.draw(0, 0, function(){
+			this.beginPath();
+			this.strokeStyle = '#ddd';
+			this.moveTo(shoot.from.X, shoot.from.Y);
+			this.lineTo(shoot.to.X, shoot.to.Y);
+	
+			this.moveTo(shoot.from.X, shoot.from.Y);
+			this.lineTo(shoot.to.X, shoot.from.Y);
+	
+			this.moveTo(shoot.to.X, shoot.from.Y);
+			this.lineTo(shoot.to.X, shoot.to.Y);
+			this.stroke();
+		})
 	},
 }
 
@@ -683,7 +660,10 @@ var UIController = {
 
 	drawGUI: function(ctx)
 	{
-		ctx.drawImage(resources.get('assets/gui.png'), 0, 0);
+		DrawHandler.draw(0, 0, function()
+		{
+			this.drawImage(resources.get('assets/gui.png'), 0, 0);
+		})
 	},
 
 	drawLoadedAmmo: function(ctx)
@@ -708,11 +688,10 @@ var UIController = {
 
 	drawWeaponSolt: function(ctx)
 	{
-		ctx.save()
-		ctx.translate(94, Core.data.canvas.height - 76)
-		var sprite = this.sprite.get(WeaponController.getCurrentWeaponId())
-		sprite.render(ctx)
-		ctx.restore()
+		DrawHandler.draw(94, Core.data.canvas.height - 76, function(ctx){
+			var sprite = this.sprite.get(WeaponController.getCurrentWeaponId())
+			sprite.render(ctx)
+		}, this)
 
 		// prev weapon
 		var currentWeapon = WeaponController.getCurrentWeaponId()
@@ -720,21 +699,19 @@ var UIController = {
 		var nextWeaponId = InventoryController.getNextStackItem('weapons', currentWeapon)
 		if (prevWeaponId)
 		{
-			ctx.save()
-			ctx.translate(30, Core.data.canvas.height - 60)
-			ctx.scale(.5,.5);
-			this.sprite.get(prevWeaponId).render(ctx)
-			ctx.restore()
+			DrawHandler.draw(30, Core.data.canvas.height - 60, function(ctx) {
+				ctx.scale(.5,.5);
+				this.sprite.get(prevWeaponId).render(ctx)
+			}, this)
 		}
 
 		// next weapon
 		if (nextWeaponId)
 		{
-			ctx.save()
-			ctx.translate(220, Core.data.canvas.height - 60)
-			ctx.scale(.5,.5);
-			this.sprite.get(nextWeaponId).render(ctx)
-			ctx.restore()
+			DrawHandler.draw(220, Core.data.canvas.height - 60, function(ctx) {
+				ctx.scale(.5,.5);
+				this.sprite.get(nextWeaponId).render(ctx)
+			}, this)
 		}
 	},
 
@@ -750,11 +727,13 @@ var UIController = {
 
 	drawStatBar: function (ctx, color, fillRate, padding)
 	{
-		ctx.beginPath()
-		ctx.fillStyle = this.stats.dead? 'red' : color
-		ctx.strokeStyle = ctx.fillStyle
-		ctx.strokeRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width, this.ui.stats.height)
-		ctx.fillRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width*fillRate, this.ui.stats.height)
+		DrawHandler.draw(0, 0, function(ctx) {
+			ctx.beginPath()
+			ctx.fillStyle = this.stats.dead? 'red' : color
+			ctx.strokeStyle = ctx.fillStyle
+			ctx.strokeRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width, this.ui.stats.height)
+			ctx.fillRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width*fillRate, this.ui.stats.height)
+		}, this)
 	},
 
 }
@@ -860,102 +839,66 @@ function Weapon (settings) {
 }
 
 
-/*==========================================================================================
-=            #ENTITY CLASS                     =============================================
-==========================================================================================*/
-function Entity (settings)
-{
-	this.settings = {};
-    	
-	this.init = function ()
-	{
-		var defaultSettings = {
-			X: 220,
-			Y: 270,
-			scaleX: 1,
-			scaleY: 1,
-			width: 32,
-			height: 32,
-			drawX: 0,
-			drawY: 0,
-			color: "#00A",
-			alias: null,
-			sprite: new SpriteSheet()
-		}
+/*=========================================
+=            #DRAW #HANDLER               =
+===========================================*/
+var DrawHandler = {
 
-		this.settings = Object.assign(defaultSettings, settings);
-
-		for (id in this.settings)
-		{
-			if (!this.settings.hasOwnProperty(id))
-				continue;
-
-			this[id] = this.settings[id]
-		}
-	}
-	this.init();
-
+	drawSprite: function(){},
 	
-	this.center = function()
+	getCanvasContext: function() {
+		return Core.data.ctx
+	},
+
+	clear: function()
 	{
-	  	return {
-	  		X: this.X + this.width/2,
-	  		Y: this.Y + this.height/2,
-	  	}
-  	}
+		this.draw(0,0, function(){
+			this.clearRect(0, 0, Core.data.canvas.width, Core.data.canvas.height);
+			this.fillStyle = '#a2bf4e'
+			this.fillRect(0, 0, Core.data.canvas.width, Core.data.canvas.height);
+		})
+	},
 
-  	this.getPoint = function ()
-  	{
-		return {X:this.X, Y:this.Y}
-  	}
+	drawGrid: function()
+	{
+		this.draw(-10,-15, function(){
+			this.strokeStyle = '#b8d763'
+			var factor = 48
+			factor = Math.sqrt(factor**2 + factor**2)
+			for (i = -10; i < 20; i++)
+			{
+				var X = i*factor
+				this.moveTo(X, 0)
+				var to = AimController.getToByAngle(X,0, Core.data.canvas.width, 35*Math.PI/180)
+				this.lineTo(to.X, to.Y)
+				this.stroke()
+			}
+			for (i = 0; i < 30; i++)
+			{
+				var X = i*factor
+				this.moveTo(X, 0)
+				var to = AimController.getToByAngle(X,0, Core.data.canvas.width, 145*Math.PI/180)
+				this.lineTo(to.X, to.Y)
+				this.stroke()
+			}
+		})
+	},
 
-  	this.getPoints = function ()
-  	{
-		return [
-			{X:this.X, Y:this.Y},
-			{X:this.X, Y:this.Y + this.height},
-			{X:this.X + this.width, Y:this.Y + this.height},
-			{X:this.X + this.width, Y:this.Y},
-		];
-  	}
+	callDrawCallback: function(callback, object_ctx, draw_ctx)
+	{
+		if (object_ctx)
+			callback.call(object_ctx, draw_ctx)
+		else callback.call(draw_ctx)
+	},
 
-  	this.draw = function (ctx)
-  	{
-  		if (this.sprite.get())
-  		{
-	  		ctx.save();
-		    ctx.translate(this.X + this.drawX, this.Y + this.drawY);
-		    ctx.scale(this.scaleX, this.scaleY)
-		    this.sprite.get().render(ctx)
-		    ctx.restore()
-  		} else {
-	  		ctx.fillStyle = this.color;
-		    ctx.fillRect(this.X, this.Y, this.width, this.height);
-		    TextController.create({X: this.center().X, Y: this.center().Y, text: this.alias, align:'center'})
-  		}
+	draw: function(x, y, callback, object_ctx) {
+		var ctx = this.getCanvasContext()
+		ctx.save()
+		ctx.translate(x, y)
+		this.callDrawCallback(callback, object_ctx, ctx)
+		ctx.restore()
+	},
 
-	    if (Core.debug)
-	    {
-	    	ctx.strokeStyle = this.color;
-	    	ctx.strokeRect(this.X, this.Y, this.width, this.height);
-	    	var text = this.id?this.id:this.alias
-		    TextController.create({size:11, font:'Arial', X: this.center().X, Y: this.Y + this.height, text: text, align:'center'})
-	    	
-	    	// Debug velocity DEBUG TEXT JSON 
-	  //   	var text = JSON.stringify(this.movement)
-	  //   	text = text.split(',').join("\n")
-			// ctx.save();
-			// ctx.translate(10, 10);
-			// ctx.font = "13px Arial";
-			// ctx.fillStyle = 'white'
-
-			// var lineheight = 15;
-			// var lines = text.split('\n');
-			// for (var i = 0; i<lines.length; i++)
-			//     ctx.fillText(lines[i], 0, 0 + (i*lineheight) );
-			// ctx.restore();
-	    }
-  	}
 }
 
 
@@ -991,21 +934,24 @@ var DrawEntity = {
   		
   		if (draw.sprite.get())
   		{
-	  		ctx.save();
-		    ctx.translate(draw.X + draw.drawX, draw.Y + draw.drawY);
-		    ctx.scale(draw.scaleX, draw.scaleY)
-		    draw.sprite.get().render(ctx)
-		    ctx.restore()
+				DrawHandler.draw(draw.X + draw.drawX, draw.Y + draw.drawY, function(){
+					this.scale(draw.scaleX, draw.scaleY)
+					draw.sprite.get().render(this)
+				})
   		} else {
-	  		ctx.fillStyle = draw.color;
-		    ctx.fillRect(draw.X, draw.Y, draw.width, draw.height);
+				DrawHandler.draw(draw.X, draw.Y, function(){
+					this.fillStyle = draw.color;
+		    	this.fillRect(0, 0, draw.width, draw.height);
+				})
 		    TextController.create({X: draw.center().X, Y: draw.center().Y, text: draw.alias, align:'center'})
   		}
 
 	    if (Core.debug)
 	    {
-	    	ctx.strokeStyle = draw.color;
-	    	ctx.strokeRect(draw.X, draw.Y, draw.width, draw.height);
+				DrawHandler.draw(draw.X, draw.Y, function(){
+					this.strokeStyle = draw.color;
+					this.strokeRect(0, 0, draw.width, draw.height);
+				})
 	    	var text = draw.id?draw.id:draw.alias
 		    TextController.create({size:11, font:'Arial', X: draw.center().X, Y: draw.Y + draw.height, text: text, align:'center'})
 	    }
@@ -1594,15 +1540,6 @@ var PlayerController = {
   {
   	// url, pos, size, speed, frames, dir, once
   	this.sprite = new SpriteSheet(['stand', 'walk'], 'player')
-  	this.entity = new Entity({
-		X: 220,
-		Y: 270,
-		alias: 'player',
-		width: 32,
-		height: 32,
-		color: '#00A',
-		sprite: this.sprite
-  	})
   },
 
   update: function(dt){
@@ -1798,14 +1735,16 @@ var PlayerController = {
   },
 
   dontFallOut: function(dt) {
-	if (this.entity.X > Core.data.canvas.width - this.entity.width)
-		this.entity.X = Core.data.canvas.width - this.entity.width
-	if (this.entity.Y > Core.data.canvas.height - this.entity.height)
-		this.entity.Y = Core.data.canvas.height - this.entity.height
-	if (this.entity.X < 0)
-		this.entity.X = 0
-	if (this.entity.Y < 0)
-		this.entity.Y = 0
+		// TODO PERFORM THIS IN SERVER
+		return;
+		if (this.entity.X > Core.data.canvas.width - this.entity.width)
+			this.entity.X = Core.data.canvas.width - this.entity.width
+		if (this.entity.Y > Core.data.canvas.height - this.entity.height)
+			this.entity.Y = Core.data.canvas.height - this.entity.height
+		if (this.entity.X < 0)
+			this.entity.X = 0
+		if (this.entity.Y < 0)
+			this.entity.Y = 0
   },
 
   hitItemId: null,
@@ -2041,19 +1980,18 @@ var TextController = {
 
 	drawLoop: function(ctx, t)
 	{
-		ctx.save()
-		ctx.translate(t.X, t.Y)
-		ctx.font = t.size+'px '+t.font
-		ctx.textBaseline = t.baseline
-		ctx.textAlign = t.align
-		ctx.fillStyle = t.fill
-		ctx.strokeStyle = t.stroke
-		ctx.lineWidth = t.lineWidth
-		if (t.fill)
-			ctx.fillText(t.text, 0, 0)
-		if (t.stroke)
-			ctx.strokeText(t.text, 0, 0)
-		ctx.restore()
+		DrawHandler.draw(t.X, t.Y, function(){
+			this.font = t.size+'px '+t.font
+			this.textBaseline = t.baseline
+			this.textAlign = t.align
+			this.fillStyle = t.fill
+			this.strokeStyle = t.stroke
+			this.lineWidth = t.lineWidth
+			if (t.fill)
+				this.fillText(t.text, 0, 0)
+			if (t.stroke)
+				this.strokeText(t.text, 0, 0)
+		})
 	}
 }
 
@@ -2101,30 +2039,25 @@ var HitTextController = {
 	loopDraw: function (ctx, id, hitt)
 	{
 		var text = hitt.text;
-		ctx.save();
-		ctx.translate(hitt.X, hitt.Y);
-		ctx.rotate(hitt.angle);
-
-
-		alpha = 1 - (Date.now() - hitt.created_at) / this.lifetime
 		
-		ctx.font = "13px Russo One";
-		
-		if (hitt.shield)
-		{
-			ctx.strokeStyle = 'rgba(15, 126, 175, '+alpha+')'
-			ctx.fillStyle = 'rgba(0, 255, 255, '+alpha+')'
-		} else {
-			ctx.strokeStyle = 'rgba(80, 80, 80, '+alpha+')'
-			ctx.fillStyle = 'rgba(255, 255, 225, '+alpha+')'
-		}
-		
-		ctx.lineWidth = 2;
-		ctx.strokeText(text, 0, -20);
-		ctx.fillText(text, 0, -20);
-
-
-		ctx.restore();
+		DrawHandler.draw(hitt.X, hitt.Y, function (ctx){
+			ctx.rotate(hitt.angle);
+			alpha = 1 - (Date.now() - hitt.created_at) / this.lifetime
+			ctx.font = "13px Russo One";
+			
+			if (hitt.shield)
+			{
+				ctx.strokeStyle = 'rgba(15, 126, 175, '+alpha+')'
+				ctx.fillStyle = 'rgba(0, 255, 255, '+alpha+')'
+			} else {
+				ctx.strokeStyle = 'rgba(80, 80, 80, '+alpha+')'
+				ctx.fillStyle = 'rgba(255, 255, 225, '+alpha+')'
+			}
+			
+			ctx.lineWidth = 2;
+			ctx.strokeText(text, 0, -20);
+			ctx.fillText(text, 0, -20);
+		}, this)
 	}
 
 }
