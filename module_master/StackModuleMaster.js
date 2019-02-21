@@ -79,6 +79,16 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 			_properties: {},
 			properties: function() {
 				return this._properties
+			},
+			_data: Object.assign({}, StackMaster, {
+				stack: [],
+				getStack: function()
+				{
+					return this.stack
+				}
+			}),
+			getData: function() {
+				return this._data
 			}
 		}
 		var module = Object.assign({}, ModuleMaster, settings)

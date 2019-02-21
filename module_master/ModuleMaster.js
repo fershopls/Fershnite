@@ -5,16 +5,8 @@ if (typeof module != 'undefined')
 }
 
 var ModuleMaster = {
-	values: [],
 
 	init: function(propertiesList){
-		this.values = Object.assign({}, StackMaster, {
-			stack: [],
-			getStack: function()
-			{
-				return this.stack
-			}
-		})
 
 		StackMaster.loop(propertiesList, function(i, property){
 			this.registerProperty(property)
@@ -54,67 +46,43 @@ var ModuleMaster = {
 		return this.properties().indexOf(id) != -1
 	},
 
-	getData: function()
+	retreiveAllData: function()
 	{
-		return this.values
+		return this.getData().get()
 	},
 
-	getAllValues: function ()
+	retreiveKeyFromData: function(id, key)
 	{
-		var valuesWithDefaults = this.values.get()
-
-		this.values.for(function(id)
-		{
-			valuesWithDefaults[id] = this.getValuesWithDefaultFor(id)
-		}, this)
-
-		return valuesWithDefaults
+		var data = undefined
+		this.getData().dimension(id, function(){
+			data = this.get(key)
+		})
+		return data
 	},
 
-	getValuesWithDefault: function (id)
+	retreive: function (id)
 	{
-		var values = {}
-		StackMaster.loop(Object.keys(this.properties()), function(i, property_id){
-			if (!this.values.get(id).hasOwnProperty(property_id))
-				values[property_id] = this.getDefaultPropertyValue(property_id)
-		}, this)
-		return values
+		return this.getData().get(id)
 	},
-
-	getValueFromId: function (key, id)
-	{
-		this.values.dimension(id)
-		var value = this.getPropertyValue(key)
-		this.values.dimension()
-		return value
-	},
-
-	getPropertyValue: function (key)
-	{
-		var property = this.getProperty(key)
-		var value = this.values.get(key)
-		return value == null? property.default:value
-	},
-
-	// get ('lastTimeFired', null, id)
-	get: function(id, default_return, dimension)
+	
+	get: function (id, key)
 	{
 		var value;
 
 		if (typeof id == 'undefined')
-			value = this.getAllValues()
-		else if (typeof dimension != 'undefined')
-			value = this.getValueFromId(id, dimension)
+			value = this.retreiveAllData()
+		else if (typeof key != 'undefined')
+			value = this.retreiveKeyFromData(id, key)
 		else
-			value = this.getValuesWithDefault(id)
+			value = this.retreive(id)
 		
-		return def(value, default_return)
+		return value
 	},
 
 	remove: function (data_id, sync){
 		sync = def(sync, true)
 
-		var removeReturn = this.values.removeById(data_id)
+		var removeReturn = this.getData().removeById(data_id)
 		if (removeReturn && sync)
 		{
 			var model = ModelMaster.new('removeDataId', {
@@ -134,11 +102,11 @@ var ModuleMaster = {
 
 		if (property)
 		{
-			var beforeSet = this.values.get(key, data_id)
-			this.values.dimension(data_id, function (){
+			var beforeSet = this.getData().get(key, data_id)
+			this.getData().dimension(data_id, function (){
 				this.set(key, value)
 			})
-			var afterSet = this.values.get(key, data_id)
+			var afterSet = this.getData().get(key, data_id)
 
 			var hasChanged = beforeSet != afterSet
 
@@ -148,7 +116,7 @@ var ModuleMaster = {
 					module_id: this.id,
 					data_id: data_id,
 					key: property.id,
-					value: this.get(property.id, null, data_id)
+					value: this.get(data_id, property.id)
 				})
 				this.syncOutput(model, socket)
 			}
@@ -162,7 +130,7 @@ var ModuleMaster = {
 			this.setSingleProperty(data_id, key, value, sync, socket)
 		}, this)
 
-		return this.values.get(data_id)
+		return this.getData().get(data_id)
 	},
 
 	getSynchronizableProperties: function()
@@ -184,7 +152,7 @@ var ModuleMaster = {
 			this.setSingleProperty(data_id, id, value, sync)
 		}, this)
 
-		return this.values.get(data_id)
+		return this.getData().get(data_id)
 	},
 
 	syncInput: function(data, socket)

@@ -1371,7 +1371,7 @@ var WeaponController = {
 
 	getCurrentWeaponId: function ()
 	{
-		return _inventory.get('current', false, PlayerController.id)
+		return _inventory.get(PlayerController.id, 'current')
 	},
 
 	getCurrentWeapon: function ()

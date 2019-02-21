@@ -315,13 +315,13 @@ var WeaponController = {
 
 	data: function (key, value)
 	{
-		if (_weapon.get(key, undefined, this.id) == undefined)
+		if (_weapon.get(this.id, key) == undefined)
 			console.log('attempt to get data is undefined', this.id, key)
 		
 		if (typeof value != 'undefined')
 			_weapon.set(key, value)
 
-		return _weapon.get(key, null, this.id)
+		return _weapon.get(this.id, key)
 	},
 
 	getAmmo: function(weapon_id)
@@ -425,7 +425,7 @@ var WeaponController = {
 
 	getCurrentWeaponId: function ()
 	{
-		return _inventory.get('current', false, this.id)
+		return _inventory.get(this.id, 'current')
 	},
 
 	getCurrentWeapon: function ()
@@ -572,7 +572,7 @@ var GameUpdateController = {
 	{
 		_items.getData().for(function(id, item) {
 			var HIT_ID = HitController.getId(player.id, item.id)
-			var socket = _players.get('socket', null, player.id)
+			var socket = _players.get(player.id, 'socket')
 			if (HitMathHelper.boxCollides(player, item))
 			{
 				HitController.set(HIT_ID, true)
@@ -651,8 +651,8 @@ var InventoryController = {
 
 	get: function (player_id)
 	{
-		console.log(_inventory.get('items', false, player_id))
-		if (!_inventory.get('items', false, player_id))
+		console.log(_inventory.get(player_id, 'items'))
+		if (!_inventory.get(player_id, 'items'))
 		{
 			_inventory.create(player_id, {})
 		}
