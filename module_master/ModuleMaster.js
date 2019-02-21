@@ -99,7 +99,11 @@ var ModuleMaster = {
 		var property = this.getProperty(key)
 
 		if (this.get(data_id, key) == value)
+		{
+			if (key == 'items')
+				console.log('SKIP value', value, 'get(key)', this.get(data_id, key))
 			return false
+		}
 		
 		if (property)
 		{
@@ -250,8 +254,6 @@ var ModuleMaster = {
 		if (model.model_id == 'updateSingleProperty')
 		{
 			// console.log('TC > update', model.data_id, model.key)
-			if (!socket)
-				console.log('missing socket')
 			socket.emit('sync', model)
 		}
 		

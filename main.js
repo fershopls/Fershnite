@@ -737,7 +737,7 @@ var UIController = {
 		var X = Core.data.canvas.width/2 -15
 		var Y = Core.data.canvas.height -82
 		
-		text = WeaponController.getCurrentWeapon().get('ammoLoaded')
+		text = PlayerController.getInventoryItem(WeaponController.getCurrentWeaponId())
 		if (text == -1)
 			text = '∞'
 		TextController.create({size:20, text: text, X: X, Y: Y, align: 'right'})
@@ -1522,9 +1522,12 @@ var PlayerController = {
   	return enemies
   },
   
-  init: function ()
+  getInventoryItem: function (item_id)
   {
-		//
+		var inventory = _inventory.get(this.id, 'items')
+		if (inventory.hasOwnProperty(item_id))
+			return inventory[item_id]
+		return 0
   },
 
   update: function(dt){

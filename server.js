@@ -72,6 +72,10 @@ var _items = master.create('items', [
 				default: 0,
 				sync: true
 			}),
+		master.field('qty', {
+				default: 30,
+				sync: true
+			}),
 		master.field('grabbable', {
 				default: false,
 				sync: true
@@ -526,10 +530,12 @@ var WeaponController = {
 
 	data: function (key, value)
 	{
-		if (typeof value != 'undefined')
-			_weapon.set(key, value)
-
-		return _weapon.get(this.id, key)
+		if (typeof value == 'undefined')
+			return _weapon.get(this.id, key)
+		
+		var keyValue = {}
+		keyValue[key] = value
+		return _weapon.set(this.id, keyValue)
 	},
 
 	getAmmo: function(weapon_id)
@@ -579,22 +585,41 @@ var WeaponController = {
 		if (!this.isShootAllowed())
 			return false
 		
+			// The shoot starts
 		this.data('lastTimeFired', Date.now())
+		console.log('!!SET', this.data('lastTimeFired'))
 		
-		var ammoLoaded = this.getCurrentWeapon().get('ammoLoaded')
-		if (ammoLoaded > 0 || ammoLoaded == -1)
+		if (this.weaponHasAmmo())
 		{
-
 			var player_center = this.getPlayerCenter(id)
 			ShootController.create(id,
 				player_center.X, player_center.Y,
 				clickPoint.X, clickPoint.Y,
 				WeaponController.getCurrentWeapon())
-			if (ammoLoaded != -1)
-				this.getCurrentWeapon().set('ammoLoaded', ammoLoaded -1 )
-		} else {
-			this.reload()
+			this.wasteAmmo()
 		}
+	},
+
+	getCurrentWeaponAmmo: function()
+	{
+		return InventoryController.has(this.id, this.getCurrentWeaponId())
+	},
+
+	wasteAmmo: function()
+	{
+		var totalAmmoAfterShoot = this.getCurrentWeaponAmmo() - 1
+		return InventoryController.set(this.id, this.getCurrentWeaponId(), totalAmmoAfterShoot)
+	},
+
+	weaponHasAmmo: function()
+	{
+		var currentWeaponAmmo = this.getCurrentWeaponAmmo()
+		console.log('Ammo in weapon:', currentWeaponAmmo)
+		if (currentWeaponAmmo)
+			return true
+
+		// this.reload()
+		return false
 	},
 
 	reload: function()
@@ -815,20 +840,21 @@ var GameUpdateController = {
 
 
 var ItemsController = {
-	new: function(id, point)
+	new: function(id, item)
 	{
 		_items.create(id, {
 			id: id,
-			X: point.X,
-			Y: point.Y,
+			X: item.X,
+			Y: item.Y,
+			qty: item.qty
 		})
 	},
 
 	generate: function()
 	{
-		this.new('weapon.shotgun', {X: Math.random()*500, Y: 100})
-		this.new('weapon.rifle', {X: Math.random()*500, Y: 200})
-		this.new('weapon.smg', {X: Math.random()*500, Y: 300})
+		this.new('weapon.shotgun', {qty: 50, X: Math.random()*500, Y: 100})
+		this.new('weapon.rifle', {qty: 300, X: Math.random()*500, Y: 200})
+		this.new('weapon.smg', {qty:400, X: Math.random()*500, Y: 300})
 	},
 
 	grabAttempt: function (socket, model)
@@ -837,7 +863,9 @@ var ItemsController = {
 		if (HitController.get(HIT_ID))
 		{
 			console.log(socket.id,'grab', model.data_id)
-			InventoryController.set(socket.id, model.data_id, 1)
+			var item_qty = _items.get(model.data_id, 'qty')
+
+			InventoryController.set(socket.id, model.data_id, item_qty)
 			InventoryController.setCurrentWeapon(socket.id, model.data_id)
 			_items.remove(model.data_id)
 		}
@@ -849,17 +877,22 @@ ItemsController.generate()
 console.log('Items Generated', Object.keys(_items.get()))
 
 
-
+// #Inventory
 
 var InventoryController = {
 	
 	set: function (player_id, item_id, qty)
 	{
-		playerInventory = this.get(player_id)
-		playerInventory.items[item_id] = qty
-		_inventory.set(player_id, {
-			items: playerInventory.items,
+		var items = {}
+		StackMaster.loop(this.get(player_id).items, function(key, value){
+			items[key] = value
 		})
+		items[item_id] = qty
+
+		_inventory.set(player_id, {
+			items: items,
+		})
+		
 	},
 
 	get: function (player_id)
@@ -868,7 +901,7 @@ var InventoryController = {
 		{
 			_inventory.create(player_id, {})
 		}
-		return _inventory.get(player_id)
+		return Object.assign({}, _inventory.get(player_id))
 	},
 
 	has: function (player_id, item)
