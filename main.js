@@ -113,66 +113,76 @@ var Core = {
 
 
 /*==========================================================================================
-=            #SPRITESHEET ClASS                     =============================================
+=            #SPRITESHEET HANDLER              =============================================
 ==========================================================================================*/
-function SpriteSheet (sprites, prefix)
-{
-	this.stack = {}
-	this.prefix = prefix?prefix: ""
-	this.currentId = null;
+var SpriteSheet = {
+	currentId: null,
 
-	this.init = function(sprites, prefix)
+	init: function (sprites, prefix) {
+		var SpritesheetInstance = Object.assign({}, this)
+		SpritesheetInstance.stack = {},
+		SpritesheetInstance.getStack = function()
+		{
+			return this.stack
+		}
+		SpritesheetInstance.initProperties(sprites, prefix)
+		return SpritesheetInstance
+	},
+
+	initProperties: function (sprites, prefix)
 	{
 		for (id in sprites)
 		{
 			if (!sprites.hasOwnProperty(id))
 				continue
 
-			var full_id = this.getPrefix() + sprites[id]
+			var full_id = this.getPrefix(prefix) + sprites[id]
 			var sprite = SpriteHandler.sprite(full_id)
-			this.stack[full_id] = sprite
+			this.getStack()[full_id] = sprite
 		}
-	}
+	},
 
-	this.getPrefix = function()
+	getPrefix: function(prefix)
 	{
-		if (this.prefix)
+		if (prefix)
 			return prefix + '.'
 		return ''
-	}
+	},
 
-	this.set = function(id)
+	set: function(id)
 	{
-		if (this.stack.hasOwnProperty(id))
+		if (this.getStack().hasOwnProperty(id))
 		{
 			this.currentId = id;
 		}
-	}
+	},
 
-	this.get = function (id)
+	get: function (id)
 	{
 		var current_id = this.getCurrentId()
 		
 		if (typeof id != 'undefined')
 			current_id = id
 		
-		var x = this.stack[current_id]
+		var x = this.getStack()[current_id]
 		if (typeof x == 'undefined')
 			console.log('get undefined', current_id)
 		return x
 	},
 
-	this.getCurrentId = function()
+	getCurrentId: function()
 	{
-		if (!this.currentId && Object.keys(this.stack).length > 0)
-			this.currentId = Object.keys(this.stack)[0]
+		if (!this.currentId && Object.keys(this.getStack()).length > 0)
+			this.currentId = Object.keys(this.getStack())[0]
 		
 		return this.currentId
 		
 	}
-
-	this.init(sprites, this.prefix)
 }
+
+
+
+
 
 /*==========================================================================================
 =            #SPRITE CONTROLLER                =============================================
@@ -199,11 +209,11 @@ var SpriteHandler = Object.assign({}, StackMaster, {
 	{
 		// TODO FIX SAME SPRITESHEET FOR ALL OBJECTS TYPE
 		return {
-			'player': new SpriteSheet([
+			'player': SpriteSheet.init([
 					'player.stand',
 					'player.walk'
 				]),
-			'item': new SpriteSheet([
+			'item': SpriteSheet.init([
 					'weapon.shotgun',
 					'weapon.rifle',
 					'weapon.smg',
@@ -651,7 +661,7 @@ var UIController = {
 	init: function ()
 	{
 		// url, pos, size, speed, frames, dir, once
-		this.sprite = new SpriteSheet([
+		this.sprite = SpriteSheet.init([
 			'shotgun',
 			'rifle',
 			'smg',
@@ -903,8 +913,8 @@ var DrawHandler = {
 	center: function (baseSprite)
 	{
 		return {
-			X: baseSprite.X + baseSprite.width,
-			Y: baseSprite.Y + baseSprite.height,
+			X: baseSprite.X + baseSprite.width/2,
+			Y: baseSprite.Y + baseSprite.height/2,
 		}
 	},
 
@@ -1017,83 +1027,6 @@ var DrawHandler = {
 
 
 /*==========================================================================================
-=            #ITEM CLASS                       =============================================
-==========================================================================================*/
-function Item (stack_id, item_id, entity, qty)
-{
-	this.stack_id = stack_id
-	this.item_id = item_id
-	this.entity = entity
-	this.qty = qty?qty:1
-
-	this.grabbable = false
-
-	this.grab = function()
-	{
-		console.log(this.stack_id, this.item_id, this.qty)
-		InventoryController.attach(this.stack_id, this.item_id, this.qty)
-	}
-
-	this.update = function(dt, id)
-	{
-		// TODO Key E must be pressed each time and not just key down
-		if (ItemController.isAllowedToGrab()
-			&& this.playerHit
-			&& ItemController.isGrabbingItem())
-		{	
-			this.grab()
-			ItemController.removeItemById(id)
-			ItemController.startTimeGrabWait()
-		}
-		this.playerHit = false
-	}
-
-	this.draw = function(ctx)
-	{
-		this.entity.draw(ctx)
-		if (this.grabbable)
-			this.drawGrabbable(ctx)
-	}
-
-	this.allowGrabbable = function ()
-	{
-		this.grabbable = ItemController.isAllowedToBeGrabbable()
-	}
-
-	this.playerHit = false
-	this.hit = function (by)
-	{
-		if (by == PlayerController)
-		{
-			this.playerHit = true
-		}
-	}
-
-	this.drawGrabbable = function (ctx)
-	{
-		var Y = this.entity.Y + this.entity.height
-		var X = this.entity.center().X
-		var text = this.getItemAlias()
-		TextController.create({size:18, text: text, X: X, Y: Y+15, align: 'center'})
-		TextController.create({size: 12, text: 'PRESS E TO GRAB', X: X, Y: Y+35, align: 'center'})
-		this.grabbable = false
-	}
-
-	this.getItemAlias = function ()
-	{
-		var alias
-		
-		if (this.entity.alias)
-			alias = this.entity.alias
-		else alias = this.item_id
-
-		return alias.toUpperCase()
-	}
-}
-
-
-
-/*==========================================================================================
 =            #ITEM      CONTROLLER             =============================================
 ==========================================================================================*/
 
@@ -1184,6 +1117,7 @@ var ItemController = {
 		var items = _items.get()
 		
 		StackMaster.loop(items, function(id, item){
+			SpriteHandler.setSprite(id, id)
 			DrawHandler.drawSprite(id, this.getDrawModel(item))
 			
 			if (item.grabbable)
