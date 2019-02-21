@@ -900,7 +900,64 @@ function Weapon (settings) {
 ===========================================*/
 var DrawHandler = {
 
-	drawSprite: function(){},
+	center: function (baseSprite)
+	{
+		return {
+			X: baseSprite.X + baseSprite.width,
+			Y: baseSprite.Y + baseSprite.height,
+		}
+	},
+
+	getBaseSprite: function()
+	{
+		baseSprite = {
+			alias: null,
+			X: 0,
+			Y: 0,
+			paddingX: 0,
+			paddingY: 0,
+			scaleX: 1,
+			scaleY: 1,
+			width: 32,
+			height: 32,
+			color: "#00A",
+			sprite: null,
+		}
+		return baseSprite
+	},
+
+	drawSprite: function(id, spriteSettings) {
+		var draw = Object.assign({}, this.getBaseSprite(), spriteSettings)
+			
+		if (draw.sprite)
+		{
+			// Draw sprite
+			DrawHandler.draw(draw.X + draw.paddingX, draw.Y + draw.paddingY, function(){
+				this.scale(draw.scaleX, draw.scaleY)
+				SpriteHandler.draw(id, 0, 0, draw.sprite)
+			})
+		} else {
+			// Draw default rect
+			DrawHandler.draw(draw.X, draw.Y, function(){
+				this.fillStyle = draw.color;
+				this.fillRect(0, 0, draw.width, draw.height);
+			})
+			var center = this.center(draw)
+			TextController.create({X: center.X, Y: center.Y, text: draw.alias, align:'center'})
+		}
+		
+		if (Core.debug)
+		{
+			// Draw debug info
+			DrawHandler.draw(draw.X, draw.Y, function(){
+				this.strokeStyle = draw.color;
+				this.strokeRect(0, 0, draw.width, draw.height);
+			})
+			var text = id?id:draw.alias
+			var center = this.center(draw)
+			TextController.create({size:11, font:'Arial', X: center.X, Y: draw.Y + draw.height, text: text, align:'center'})
+		}
+	},
 	
 	getCanvasContext: function() {
 		return Core.data.ctx
@@ -955,63 +1012,6 @@ var DrawHandler = {
 		ctx.restore()
 	},
 
-}
-
-
-/*=========================================
-=            #DRAW ENTITY                 =
-===========================================*/
-var DrawEntity = {
-	defaultSettings: {
-			id: null,
-			alias: null,
-			X: 220,
-			Y: 270,
-			scaleX: 1,
-			scaleY: 1,
-			width: 32,
-			height: 32,
-			drawX: 0,
-			drawY: 0,
-			color: "#00A",
-			sprite: null,
-
-			center: function(){
-				return {
-			  		X: this.X + this.width/2,
-			  		Y: this.Y + this.height/2,
-			  	}
-			  },
-		},
-  	
-  	draw: function (id, ctx, settings)
-  	{
-  		var draw = Object.assign({}, this.defaultSettings, settings)
-  		
-  		if (draw.sprite)
-  		{
-				DrawHandler.draw(draw.X + draw.drawX, draw.Y + draw.drawY, function(){
-					this.scale(draw.scaleX, draw.scaleY)
-					SpriteHandler.draw(id, 0, 0, draw.sprite)
-				})
-  		} else {
-				DrawHandler.draw(draw.X, draw.Y, function(){
-					this.fillStyle = draw.color;
-		    	this.fillRect(0, 0, draw.width, draw.height);
-				})
-		    TextController.create({X: draw.center().X, Y: draw.center().Y, text: draw.alias, align:'center'})
-  		}
-
-	    if (Core.debug)
-	    {
-				DrawHandler.draw(draw.X, draw.Y, function(){
-					this.strokeStyle = draw.color;
-					this.strokeRect(0, 0, draw.width, draw.height);
-				})
-	    	var text = draw.id?draw.id:draw.alias
-		    TextController.create({size:11, font:'Arial', X: draw.center().X, Y: draw.Y + draw.height, text: text, align:'center'})
-	    }
-  	}
 }
 
 
@@ -1160,33 +1160,31 @@ var ItemController = {
 		return false
 	},
 
-	getDrawEntityModel: function(item) {
-			var drawEntityModel = {
-			X: item.X,
-			Y: item.Y,
+	getDrawModel: function(item) {
+			var drawModel = {
+				X: item.X,
+				Y: item.Y,
 
-			alias: item.id,
-			width:48,
-			height:32,
-			drawX: -8,
-			drawY: 0,
-			scaleX: 0.49,
-			scaleY: 0.49,
-			color: 'red',
-			// TODO fix creating a spritesheet everytime
-			sprite: 'item',
+				alias: item.id,
+				width:48,
+				height:32,
+				paddingX: -8,
+				paddingY: 0,
+				scaleX: 0.49,
+				scaleY: 0.49,
+				color: 'blue',
+
+				sprite: 'item',
 	  	}
-	  	if (item.id != this.id)
-				drawEntityModel.color = 'red'
 				
-	  	return drawEntityModel
+	  	return drawModel
 	},
 
 	draw: function(ctx) {
 		var items = _items.get()
 		
 		StackMaster.loop(items, function(id, item){
-			DrawEntity.draw('items', ctx, this.getDrawEntityModel(item))
+			DrawHandler.drawSprite(id, this.getDrawModel(item))
 			
 			if (item.grabbable)
 				this.drawGrabbableText(ctx, item)
@@ -1196,7 +1194,7 @@ var ItemController = {
 
 	drawGrabbableText: function (ctx, item)
 	{
-		var item = this.getDrawEntityModel(item);
+		var item = this.getDrawModel(item);
 		var Y = item.Y + item.height
 		var X = item.X + item.width/2
 
@@ -1386,12 +1384,12 @@ var WeaponController = {
 			// Send shoot
 			var player = PlayerController.getCurrentPlayer()
 			ShootController.socketShootSend(PlayerController.id,
-				player.center().X, player.center().Y,
+				DrawHandler.center(player).X, DrawHandler.center(player).Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeaponId())
 
 			ShootController.create(PlayerController.id,
-				player.center().X, player.center().Y,
+				DrawHandler.center(player).X, DrawHandler.center(player).Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeapon())
 			if (ammoLoaded != -1)
@@ -1564,6 +1562,8 @@ var WeaponController = {
 
 var PlayerController = {
   id: null,
+	width:32,
+	height:32,
   movement: {
   	x_speed: 0, // current speed
   	y_speed: 0,
@@ -1571,7 +1571,7 @@ var PlayerController = {
   	y_aceleration: 0,
   	max_speed: 10, // max px per sec
   	aceleration: 500, // 0 speed to max_speed in ms 
-  },
+	},
   
   setId: function(id)
   {
@@ -1702,8 +1702,6 @@ var PlayerController = {
   	this.updateAllowItemGrabbable()
   },
 
-  width:32,
-  height:32,
   getPoints: function (shape)
   {
 		return [
@@ -1736,7 +1734,7 @@ var PlayerController = {
   
   getCurrentPlayer: function()
   {
-		return this.getDrawEntityModel(this.id, _players.get(this.id))
+		return this.getDrawModel(this.id, _players.get(this.id))
   },
   
   center: function(item) {
@@ -1746,25 +1744,16 @@ var PlayerController = {
 		}
   },
 
-  getDrawEntityModel: function(id, player) {
-  		var drawEntityModel = {
-			X: player.X,
-			Y: player.Y,
-			id: id,
-			width: this.width,
-			height: this.height,
-			color: '#00A',
-			sprite: this.sprite,
-			center: function() {
-				return {
-					X: this.X + this.width/2,
-					Y: this.Y + this.height/2,
-				}
-			},
+  getDrawModel: function(id, player) {
+  		var drawModel = {
+				X: player.X,
+				Y: player.Y,
+				width: this.width,
+				height: this.height,
+				color: id == this.id?'#00A':'red',
+				sprite: 'player',
 	  	}
-	  	if (id != this.id)
-	  		drawEntityModel.color = 'red'
-	  	return drawEntityModel
+	  	return drawModel
 	},
 
   draw: function(ctx) {
@@ -1772,8 +1761,8 @@ var PlayerController = {
   	var players = _players.get()
   	
   	StackMaster.loop(players, function(id, player){
-			var drawModel = this.getDrawEntityModel(id, player)
-			SpriteHandler.draw(id, drawModel.X, drawModel.Y, 'player')
+			var drawModel = this.getDrawModel(id, player)
+			DrawHandler.drawSprite(id, drawModel)
   	}, this)
   },
 
