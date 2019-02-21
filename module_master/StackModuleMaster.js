@@ -6,14 +6,20 @@ if (typeof module != 'undefined') {
 
 var StackModuleMaster = Object.assign({}, StackMaster, {
 	stack: [],
-	clientSide: false,
+	
+	isClientSide: null,
+	getSocketCallback: null,
+
+	start: function (isClientSide, getSocketCallback)
+	{
+		this.isClientSide = isClientSide
+		this.getSocketCallback = getSocketCallback
+	},
 
 	getStack: function()
 	{
 		return this.stack
 	},
-
-	name: 'Stack Module Master',
 
 	create: function(id, properties) {
 		var module = this.initModule(id, properties)
@@ -23,10 +29,13 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 
 	initModule: function (id, properties)
 	{
-		// FIX POO
+		var isClientSide = this.isClientSide
+		var getSocketCallback = this.getSocketCallback
+
 		var settings = {
 			id:id,
-			clientSide: this.clientSide,
+			clientSide: isClientSide,
+			getSocket: getSocketCallback,
 			_properties: {},
 			properties: function() {
 				return this._properties

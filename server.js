@@ -17,6 +17,9 @@ app.use(bodyParser.urlencoded({extended: false}))
 
 
 
+master.start(false, function(){
+	return io
+})
 
 var _players = master.create('players', [
 		new Property('id', null),
@@ -47,11 +50,6 @@ var _inventory = master.create('inventory', [
 		new Property('items', {}, true),
 		new Property('current', null, true),
 	])
-
-// todo fix this
-_players.getSocket = _inventory.getSocket = _items.getSocket = function(){
-	return io
-}
 
 
 

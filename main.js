@@ -2322,7 +2322,9 @@ var Socket = {
 }
 
 var registerModules = (function(){
-	StackModuleMaster.clientSide = true;
+	StackModuleMaster.start(true, function(){
+		return Socket.io
+	})
 
 	// TODO CLEAR PROPERTIES GET FROM SERVER
 	_players = StackModuleMaster.create('players', [
@@ -2344,10 +2346,6 @@ var registerModules = (function(){
 			new Property('items', {}, true),
 			new Property('current', null, true),
 		])
-
-	_players.getSocket = _items.getSocket = function(id){
-		return Socket.io
-	}
 })
 
 
