@@ -16,6 +16,27 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 		this.getSocketCallback = getSocketCallback
 	},
 
+	sendModulesTo: function (socket, stack)
+	{
+		var modules = {};
+		this.for(function(key, value){
+			modules[key] = value.getSynchronizableProperties()
+		}, this)
+
+		socket.emit('modules', modules)
+	},
+
+	loadModules: function (modules)
+	{
+		StackMaster.loop(modules, function (module_id, properties) {
+			var instancedProperties = []
+			StackMaster.loop(properties, function(index, property_id) {
+				instancedProperties.push(new Property(property_id, null, true))
+			}, this)
+			this.create(module_id, instancedProperties)
+		}, this)
+	},
+
 	getStack: function()
 	{
 		return this.stack
@@ -34,7 +55,7 @@ var StackModuleMaster = Object.assign({}, StackMaster, {
 
 		var settings = {
 			id:id,
-			clientSide: isClientSide,
+			isClientSide: isClientSide,
 			getSocket: getSocketCallback,
 			_properties: {},
 			properties: function() {

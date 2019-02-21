@@ -1208,7 +1208,7 @@ var ItemController = {
 
 	getItemAlias: function (item)
 	{
-		return item.alias.toUpperCase()
+		return item.alias.toUpperCase().split('.')[1]
 	},
 }
 
@@ -2265,15 +2265,13 @@ var MouseController = {
 =            #RESOURCES #INIT                  =============================================
 ==========================================================================================*/
 $(document).ready(function(){
-	registerModules()
 	resources.load([
 	    'assets/gui.png',
 	    'assets/player.png',
 	    'assets/gun.png',
 	]);
 	resources.onReady(function(){
-		var Controllers = [
-				Socket,
+		Controllers = [
 				MouseController,
 				SpriteController,
 				HitController,
@@ -2292,7 +2290,7 @@ $(document).ready(function(){
 				TextController,
 				UIController,
 			]
-		Core.init(document.getElementById('canshoot'), Controllers)
+		Socket.init()
 	});
 });
 
@@ -2310,6 +2308,11 @@ var Socket = {
 			PlayerController.setId(id)
 		})
 
+		this.io.on('modules', function(modules){			
+			startSyncRegisterModules(modules)
+			Core.init(document.getElementById('canshoot'), Controllers)
+		})
+
 		this.io.on('sync', function(data) {
 			var module = StackModuleMaster.get(data.module_id)
 
@@ -2321,31 +2324,16 @@ var Socket = {
 	}
 }
 
-var registerModules = (function(){
+var startSyncRegisterModules = (function(modules){
 	StackModuleMaster.start(true, function(){
 		return Socket.io
 	})
 
-	// TODO CLEAR PROPERTIES GET FROM SERVER
-	_players = StackModuleMaster.create('players', [
-			new Property('id', 0),
-			new Property('X', 0, true),
-			new Property('Y', 0, true)
-		])
+	StackModuleMaster.loadModules(modules)
 
-	_items = StackModuleMaster.create('items', [
-			new Property('id', 0),
-			new Property('X', 0, true),
-			new Property('Y', 0, true),
-			new Property('grabbable', false, true),
-			new Property('grabbed_by', null, true),
-		])
-
-	_inventory = StackModuleMaster.create('inventory', [
-			new Property('id', null),
-			new Property('items', {}, true),
-			new Property('current', null, true),
-		])
+	_players = StackModuleMaster.get('players')
+	_items = StackModuleMaster.get('items')
+	_inventory = StackModuleMaster.get('inventory')
 })
 
 

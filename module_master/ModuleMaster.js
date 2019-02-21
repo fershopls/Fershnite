@@ -101,10 +101,13 @@ var ModuleMaster = {
 
 		if (property)
 		{
-
+			var beforeSet = this.values.get(key, data_id)
 			this.values.dimension(data_id, function (){
 				this.set(key, value)
 			})
+			var afterSet = this.values.get(key, data_id)
+
+			var hasChanged = beforeSet != afterSet
 
 			if (property.allow_sync && sync)
 			{
@@ -131,9 +134,12 @@ var ModuleMaster = {
 
 	getSynchronizableProperties: function()
 	{
-		// StackMaster.loop(this.properties(), function(id, property){
-		// 	console.log(id, property.allow_sync)
-		// }, this)
+		var syncProperties = []
+		StackMaster.loop(this.properties(), function(id, property){
+			if (property.allow_sync)
+				syncProperties.push(id)
+		}, this)
+		return syncProperties
 	},
 
 	create: function(data_id, initialKeyValue, sync)
@@ -150,7 +156,7 @@ var ModuleMaster = {
 
 	syncInput: function(data, socket)
 	{
-		if (this.clientSide)
+		if (this.isClientSide)
 		{
 			this.syncInputClient(data, socket)
 		}
@@ -227,7 +233,7 @@ var ModuleMaster = {
 	{
 		var socket = def(socket, this.getSocketSafe())
 		
-		if (this.clientSide)
+		if (this.isClientSide)
 		{
 			this.clientOutput(model, socket)
 		}
@@ -293,18 +299,18 @@ var ModuleMaster = {
 		}
 		else
 		{
-			console.log('[!] Missing socket', (this.clientSide)?'client':'server')
+			console.log('[!] Missing socket', (this.isClientSide)?'client':'server')
 		}
 	},
 
 	requestGameUpdate: function()
 	{
-		return 'please override this function'
+		// console.log('Please override requestGameUpdate function in server/client both sides')
 	},
 
 	getSocket: function()
 	{
-		return 'Please override getSocket function in server/client both sides'
+		console.log('Please override getSocket function in server/client both sides')
 	},
 
 }

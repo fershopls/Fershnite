@@ -36,7 +36,7 @@ var checkGrabbedBy = function(socket, model)
 }
 
 var _items = master.create('items', [
-		new Property('id', null),
+		new Property('id', null, true),
 		new Property('X', 0, true),
 		new Property('Y', 0, true),
 		new Property('grabbable', false, true),
@@ -46,7 +46,7 @@ var _items = master.create('items', [
 	])
 
 var _inventory = master.create('inventory', [
-		new Property('id', null),
+		new Property('id', null, true),
 		new Property('items', {}, true),
 		new Property('current', null, true),
 	])
@@ -55,6 +55,8 @@ var _inventory = master.create('inventory', [
 
 
 io.on('connection', (socket) => {
+	master.sendModulesTo(socket, master.stack)
+
 	var player = PlayersController.newPlayer(socket)
 	
 	socket.on('sync', (data) => {
