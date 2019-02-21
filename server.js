@@ -23,23 +23,23 @@ master.start(false, function(){
 var _players = master.create('players', [
 		master.field('id'),
 		master.field('X', {
-				default_value: 0,
-				allow_sync: true,
+				default: 0,
+				sync: true,
 				broadcastable: true
 			}),
 		master.field('Y', {
-				default_value: 0,
-				allow_sync: true,
+				default: 0,
+				sync: true,
 				broadcastable: true
 			}),
 		master.field('width', {
-				default_value:32
+				default:32
 			}),
 		master.field('height', {
-				default_value:32
+				default:32
 			}),
 		master.field('socket', {
-				default_value: 0
+				default: 0
 			})
 	])
 
@@ -50,42 +50,42 @@ var checkGrabbedBy = function(socket, model)
 
 var _items = master.create('items', [
 		master.field('id', {
-				allow_sync: true
+				sync: true
 			}),
 		master.field('X', {
-				default_value: 0,
-				allow_sync: true
+				default: 0,
+				sync: true
 			}),
 		master.field('Y', {
-				default_value: 0,
-				allow_sync: true
+				default: 0,
+				sync: true
 			}),
 		master.field('grabbable', {
-				default_value: false,
-				allow_sync: true
+				default: false,
+				sync: true
 			}),
 		master.field('grabbed_by', {
-				allow_sync: true,
-				updateValidator: checkGrabbedBy,
+				sync: true,
+				onSetAttempt: checkGrabbedBy,
 			}),
 		master.field('width', {
-				default_value: 48
+				default: 48
 			}),
 		master.field('height', {
-				default_value: 32
+				default: 32
 			}),
 	])
 
 var _inventory = master.create('inventory', [
 		master.field('id', {
-				allow_sync: true
+				sync: true
 			}),
 		master.field('items', {
-				default_value: {},
-				allow_sync: true
+				default: {},
+				sync: true
 			}),
 		master.field('current', {
-				allow_sync: true
+				sync: true
 			}),
 	])
 

@@ -2,7 +2,6 @@ if (typeof module != 'undefined')
 {
 	var StackMaster = require('./StackMaster.js');
 	var ModelMaster = require('./ModelMaster.js');
-	var Property = require('./Property.js');
 }
 
 var ModuleMaster = {
@@ -44,7 +43,7 @@ var ModuleMaster = {
 		var dic = {}
 
 		StackMaster.loop(keys, function(id, property){
-			dic[id] = this.get(id, property.default_value)
+			dic[id] = this.get(id, property.default)
 		}, this)
 		
 		return dic
@@ -60,7 +59,7 @@ var ModuleMaster = {
 		return this.values
 	},
 
-	get: function(id, default_value, dimension)
+	get: function(id, default_return, dimension)
 	{
 		if (typeof id == 'undefined')
 			return this.values.get()
@@ -69,7 +68,7 @@ var ModuleMaster = {
 			this.values.dimension(dimension)
 		
 		if (this.values.has(id))
-			var value = def(this.values.get(id), default_value)
+			var value = def(this.values.get(id), default_return)
 
 		if (typeof dimension != 'undefined')
 			this.values.dimension()
@@ -108,7 +107,7 @@ var ModuleMaster = {
 
 			var hasChanged = beforeSet != afterSet
 
-			if (property.allow_sync && sync)
+			if (property.sync && sync)
 			{
 				var model = ModelMaster.new('updateSingleProperty', {
 					module_id: this.id,
@@ -136,7 +135,7 @@ var ModuleMaster = {
 		var syncProperties = []
 		StackMaster.loop(this.properties(), function(id, property){
 			console.log(property)
-			if (property.allow_sync)
+			if (property.sync)
 				syncProperties.push(id)
 		}, this)
 		return syncProperties
@@ -147,7 +146,7 @@ var ModuleMaster = {
 		sync = def(sync, true)
 		
 		StackMaster.loop(this.properties(), function(id, property){
-			var value = def(initialKeyValue[id], property.default_value)
+			var value = def(initialKeyValue[id], property.default)
 			this.setSingleProperty(data_id, id, value, sync)
 		}, this)
 
@@ -178,11 +177,12 @@ var ModuleMaster = {
 		if (model.model_id == 'updateSingleProperty')
 		{
 			var property = this.getProperty(model.key)
-
-			var propertyUpdateValidationPass = true
-			if (typeof property.updateValidator == 'function')
+			
+			var propertyValidationPass = true
+			// TODO DEL console.log('validation', property.id, property.onSetAttempt)
+			if (typeof property.onSetAttempt == 'function')
 			{
-				var propertyUpdateValidationPass = property.updateValidator.call(this, socket, model)
+				var propertyValidationPass = property.onSetAttempt.call(this, socket, model)
 			}
 
 			if (property.broadcastable)
@@ -191,9 +191,8 @@ var ModuleMaster = {
 				var sync_socket = undefined
 
 			// TODO check if property.allow_client_edit == true
-			if (propertyUpdateValidationPass)
+			if (propertyValidationPass)
 			{
-				
 				this.syncOutput(model, sync_socket)
 				// Update Properties
 				var dict = {}
@@ -224,7 +223,7 @@ var ModuleMaster = {
 
 		if (model.model_id == 'removeDataId')
 		{
-			console.log('[-] PLAYER', model.data_id)
+			console.log('[-]', data.module_id, model.data_id)
 			this.remove(model.data_id, false)
 		}
 	},
