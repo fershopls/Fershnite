@@ -472,11 +472,6 @@ var ShootController = {
 	stack: {},
 	lifetime: 800,
 	
-	socketShootSend: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
-	{
-		Socket.io.emit('shootClick', shooter_id, x, y, mouse_x, mouse_y, weapon_id)
-	},
-	
 	socketShootDraw: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
 	{
 		ShootController.create(shooter_id, x, y, mouse_x, mouse_y, WeaponController.getWeapon(weapon_id))
@@ -737,15 +732,10 @@ var UIController = {
 		var X = Core.data.canvas.width/2 -15
 		var Y = Core.data.canvas.height -82
 		
-		text = PlayerController.getInventoryItem(WeaponController.getCurrentWeaponId())
+		text = WeaponController.getAmmoInCharger()
 		if (text == -1)
 			text = '∞'
 		TextController.create({size:20, text: text, X: X, Y: Y, align: 'right'})
-	},
-
-	getLeftAmmoItemId: function ()
-	{
-		return WeaponController.getCurrentWeaponId().split('weapon').join('ammo')
 	},
 
 	drawLeftAmmo: function(ctx)
@@ -753,7 +743,7 @@ var UIController = {
 		var X = Core.data.canvas.width/2+35
 		var Y = Core.data.canvas.height -82
 		
-		text = PlayerController.getInventoryItem(this.getLeftAmmoItemId())
+		text = WeaponController.getAmmoInInventory()
 		TextController.create({size:20, text: text, X: X, Y: Y, align: 'left'})
 	},
 
@@ -1152,7 +1142,11 @@ var ItemController = {
 
 	getItemAlias: function (item)
 	{
-		return item.alias.toUpperCase().split('.')[1]
+		console.log(item.alias)
+		var alias = item.alias.split('.')[1]
+		if (item.alias.split('.')[0].toLowerCase() == 'ammo')
+			alias = [alias, 'ammo'].join(' ')
+		return alias.toUpperCase()
 	},
 }
 
@@ -1279,20 +1273,19 @@ var WeaponController = {
 	},
 	weapons: [],
 
-	getAmmo: function(weapon_id)
+	getAmmoInCharger: function()
 	{
-		var ammo = InventoryController.has('ammo', weapon_id)
-		return ammo?ammo:0
+		return PlayerController.getInventoryItem(WeaponController.getCurrentWeaponId())
+	},
+	
+	getAmmoInInventoryItemId: function ()
+	{
+		return WeaponController.getCurrentWeaponId().split('weapon').join('ammo')
 	},
 
-	setAmmo: function (weapon_id, ammo)
+	getAmmoInInventory: function()
 	{
-		if (this.ammo.hasOwnProperty(weapon_id))
-			this.ammo[weapon_id] += ammo
-		else 
-			this.ammo[weapon_id] = ammo
-
-		return this.ammo[weapon_id]
+		return PlayerController.getInventoryItem(this.getAmmoInInventoryItemId())
 	},
 
 	isShootAllowed: function()
@@ -1314,7 +1307,7 @@ var WeaponController = {
 
 	isReloadAllowed: function()
 	{
-		return this.isTimeToReloadAllowed() && this.getCurrentWeapon().get('ammoLoaded') < this.getCurrentWeapon().get('ammoCharger')
+		return this.isTimeToReloadAllowed() && this.getAmmoInCharger() < this.getCurrentWeapon().get('ammoCharger')
 	},
 
 	shoot: function(dt)
@@ -1324,22 +1317,15 @@ var WeaponController = {
 		
 		this.data.lastTimeFired = Date.now()
 		
-		var ammoLoaded = PlayerController.getInventoryItem(WeaponController.getCurrentWeaponId())
-		if (ammoLoaded > 0 || ammoLoaded == -1)
+		if (this.getAmmoInCharger() > 0)
 		{
 			// Send shoot
 			var player = PlayerController.getCurrentPlayer()
-			ShootController.socketShootSend(PlayerController.id,
-				DrawHandler.center(player).X, DrawHandler.center(player).Y,
-				MouseController.X, MouseController.Y,
-				WeaponController.getCurrentWeaponId())
 
 			ShootController.create(PlayerController.id,
 				DrawHandler.center(player).X, DrawHandler.center(player).Y,
 				MouseController.X, MouseController.Y,
 				WeaponController.getCurrentWeapon())
-			if (ammoLoaded != -1)
-				this.getCurrentWeapon().set('ammoLoaded', ammoLoaded -1 )
 		} else {
 			this.reload()
 		}
@@ -1349,28 +1335,15 @@ var WeaponController = {
 	{
 		if (!this.isReloadAllowed())
 			return false
+
 		this.data.lastTimeReloaded = Date.now()
-		var id = this.getCurrentWeaponId()
 		var weapon = this.getCurrentWeapon()
 
-		var ammo = InventoryController.has('ammo', id)
-		if (ammo)
+		if (this.getAmmoInInventory())
 		{
-			var currentLoadedAmmo = weapon.get('ammoLoaded')
+			var currentLoadedAmmo = this.getAmmoInCharger()
 			var chargerMaxAmmo = weapon.get('ammoCharger')
 			var missingAmmo = chargerMaxAmmo - currentLoadedAmmo
-			
-			var ammo_after_reload = ammo - missingAmmo
-			
-			if (ammo_after_reload > 0)
-			{
-				weapon.set('ammoLoaded', currentLoadedAmmo + missingAmmo)
-				InventoryController.attach('ammo', id, -missingAmmo)
-			} else {
-				weapon.set('ammoLoaded', ammo)
-				InventoryController.set('ammo', id, 0)
-			}
-
 			Core.sound.weapon.play()
 		} else {
 			Core.sound.fire.emptyGun.play();
@@ -1606,8 +1579,8 @@ var PlayerController = {
 	    _players.set(this.id, point, theresDiff)
     }
 
-    // Shoot thing
-    if (input.isDown("SPACE") || MouseController.click)
+    // Shoot send
+    if (MouseController.click)
     {
 			_control.set(PlayerController.id, {
 				click: {
@@ -1616,6 +1589,14 @@ var PlayerController = {
 				}
 			})
 			WeaponController.shoot(dt);
+    }
+    // Reload send
+    if (input.isDown("r") && WeaponController.isReloadAllowed())
+    {
+			_control.set(PlayerController.id, {
+				reload: Date.now()
+			})
+    	WeaponController.reload()
     }
 
     // Change weapon
@@ -1626,11 +1607,6 @@ var PlayerController = {
     if (input.isDown("z"))
     {
     	WeaponController.switchWeapon(false)
-    }
-    // Reload weapon
-    if (input.isDown("r"))
-    {
-    	WeaponController.reload()
     }
 
     // Toggle debug

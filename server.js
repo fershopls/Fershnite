@@ -30,6 +30,15 @@ var _control = master.create('control', [
 			return false
 		}
 	}),
+	master.field('reload', {
+		sync: true,
+		default: false,
+		onSetAttempt: function (socket, model)
+		{
+			WeaponController.reload(socket.id)
+			return false
+		}
+	}),
 ])
 
 var _players = master.create('players', [
@@ -610,8 +619,14 @@ var WeaponController = {
 
 	wasteAmmoCharger: function()
 	{
-		var totalAmmoAfterShoot = this.getCurrentAmmoInCharger() - 1
-		return InventoryController.set(this.id, this.getCurrentAmmoInChargerItemId(), totalAmmoAfterShoot)
+		var totalAmmoAfterWaste = this.getCurrentAmmoInCharger() - 1
+		return InventoryController.set(this.id, this.getCurrentAmmoInChargerItemId(), totalAmmoAfterWaste)
+	},
+
+	wasteAmmoInventory: function(qty)
+	{
+		var totalAmmoAfterWaste = this.getCurrentWeaponAmmoInInventory() - qty
+		return InventoryController.set(this.id, this.getCurrentAmmoInInventoryItemId(), totalAmmoAfterWaste)
 	},
 
 	weaponHasAmmo: function()
@@ -620,7 +635,7 @@ var WeaponController = {
 		if (currentWeaponAmmo > 0)
 			return true
 
-		this.reload()
+		this.reload(this.id)
 		return false
 	},
 	
@@ -645,8 +660,11 @@ var WeaponController = {
 		return InventoryController.has(this.id, ammoItemId)
 	},
 
-	reload: function()
+	reload: function(socket_id)
 	{
+		this.setId(socket_id)
+		console.log('reload for', socket_id)
+
 		if (!this.isReloadAllowed())
 			return false
 
@@ -828,15 +846,22 @@ var GameUpdateController = {
 
 	checkItemsWithPlayerHit: function (player)
 	{
+		var lastItemId = 0
 		_items.getData().for(function(id, item) {
+			// var HIT_ID = HitController.getId(player.id, item.id)
 			var HIT_ID = HitController.getId(player.id, item.id)
 			var socket = _players.get(player.id, 'socket')
 			if (HitMathHelper.boxCollides(player, item))
 			{
+				if (ItemsController.checkLastPlayerItemHit(player.id, item.id))
+				{
+					// Send grabbable property
+					_items.set(item.id, {
+						grabbable: true,
+					}, true, socket)
+				}
+				lastItemId = item.id
 				HitController.set(HIT_ID, true)
-				_items.set(item.id, {
-					grabbable: true,
-				}, true, socket)
 			} else {
 				HitController.set(HIT_ID, false)
 				_items.set(item.id, {
@@ -844,6 +869,7 @@ var GameUpdateController = {
 				}, true, socket)
 			}
 		}, this)
+		ItemsController.setLastPlayerItemHit(player.id, lastItemId)
 	},
 
 	updateItems: function ()
@@ -862,6 +888,19 @@ var GameUpdateController = {
 
 
 var ItemsController = {
+
+	lastPlayerItemHitList: {},
+
+	setLastPlayerItemHit: function (player_id, item_id)
+	{
+		this.lastPlayerItemHitList[player_id] = item_id
+	},
+
+	checkLastPlayerItemHit: function (player_id, item_id)
+	{
+		return this.lastPlayerItemHitList.hasOwnProperty(player_id) && this.lastPlayerItemHitList[player_id] == item_id
+	},
+
 	new: function(id, item)
 	{
 		_items.create(id, {
@@ -877,13 +916,15 @@ var ItemsController = {
 		this.new('weapon.shotgun', {qty: 3, X: Math.random()*500, Y: 50})
 		this.new('weapon.rifle', {qty: 10, X: Math.random()*500, Y: 100})
 		this.new('weapon.smg', {qty: 10, X: Math.random()*500, Y: 150})
-		this.new('ammo.smg', {qty: 30, X: Math.random()*500, Y: 200})
+		this.new('ammo.smg', {qty: 30, X: 500, Y: 200})
+		this.new('ammo.shotgun', {qty: 30, X: 500, Y: 200})
+		this.new('ammo.rifle', {qty: 30, X: 500, Y: 200})
 	},
 
 	isPlayerAbleToGrab: function(player_id, item_id)
 	{
 		var HIT_ID = HitController.getId(player_id, item_id)
-		return HitController.get(HIT_ID)
+		return HitController.get(HIT_ID) && this.checkLastPlayerItemHit(player_id, item_id)
 	},
 
 	grabAttempt: function (socket, model)
