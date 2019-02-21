@@ -1142,7 +1142,6 @@ var ItemController = {
 
 	getItemAlias: function (item)
 	{
-		console.log(item.alias)
 		var alias = item.alias.split('.')[1]
 		if (item.alias.split('.')[0].toLowerCase() == 'ammo')
 			alias = [alias, 'ammo'].join(' ')

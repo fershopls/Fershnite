@@ -218,7 +218,8 @@ var ModuleMaster = {
 		{
 			var keyValue = {}
 			keyValue[model.key] = model.value
-			// console.log(model.module_id, model.data_id, keyValue, false)
+			if (model.key == 'grabbable')
+				console.log(model.module_id, model.data_id, keyValue, false)
 			this.set(model.data_id, keyValue, false)
 		}
 		
