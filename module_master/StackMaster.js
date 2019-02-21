@@ -46,7 +46,7 @@ var StackMaster = {
 			this.dimension()
 			return value
 		}
-		return null
+		return undefined
 	},
 
 	has: function(id)

@@ -311,17 +311,20 @@ var WeaponController = {
 
 	setId: function(socket_id){
 		this.id = socket_id
+		if (typeof _weapon.get(this.id, 'lastTimeFired') == 'undefined')
+		{
+			console.log('Creating', this.id, 'weapons')
+			_weapon.create(this.id, {})
+		}
 		return this
 	},
 
 	data: function (key, value)
 	{
-		if (_weapon.get(this.id, key) == undefined)
-			console.log('attempt to get data is undefined', this.id, key)
-		
 		if (typeof value != 'undefined')
 			_weapon.set(key, value)
 
+		console.log(key, _weapon.get(this.id, key))
 		return _weapon.get(this.id, key)
 	},
 

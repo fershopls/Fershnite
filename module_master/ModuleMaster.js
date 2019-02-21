@@ -98,9 +98,6 @@ var ModuleMaster = {
 	{
 		var property = this.getProperty(key)
 
-		if (this.get(data_id, key) == 'weapon.shotgun')
-			console.log('debug')
-
 		if (this.get(data_id, key) == value)
 			return false
 		
