@@ -563,7 +563,7 @@ var WeaponController = {
 
 	isReloadAllowed: function()
 	{
-		return this.isTimeToReloadAllowed() && this.getCurrentWeapon().get('ammoLoaded') < this.getCurrentWeapon().get('ammoCharger')
+		return this.isTimeToReloadAllowed() && this.getCurrentAmmoInCharger() < this.getCurrentWeapon().get('ammoCharger')
 	},
 
 	getPlayerCenter: function (player_id)
@@ -595,29 +595,54 @@ var WeaponController = {
 				player_center.X, player_center.Y,
 				clickPoint.X, clickPoint.Y,
 				WeaponController.getCurrentWeapon())
-			this.wasteAmmo()
+			this.wasteAmmoCharger()
 		}
 	},
-
-	getCurrentWeaponAmmo: function()
+	getCurrentAmmoInChargerItemId: function()
 	{
-		return InventoryController.has(this.id, this.getCurrentWeaponId())
+		return this.getCurrentWeaponId()
 	},
 
-	wasteAmmo: function()
+	getCurrentAmmoInCharger: function()
 	{
-		var totalAmmoAfterShoot = this.getCurrentWeaponAmmo() - 1
-		return InventoryController.set(this.id, this.getCurrentWeaponId(), totalAmmoAfterShoot)
+		return InventoryController.has(this.id, this.getCurrentAmmoInChargerItemId())
+	},
+
+	wasteAmmoCharger: function()
+	{
+		var totalAmmoAfterShoot = this.getCurrentAmmoInCharger() - 1
+		return InventoryController.set(this.id, this.getCurrentAmmoInChargerItemId(), totalAmmoAfterShoot)
 	},
 
 	weaponHasAmmo: function()
 	{
-		var currentWeaponAmmo = this.getCurrentWeaponAmmo()
-		if (currentWeaponAmmo)
+		var currentWeaponAmmo = this.getCurrentAmmoInCharger()
+		if (currentWeaponAmmo > 0)
 			return true
 
-		// this.reload()
+		this.reload()
 		return false
+	},
+	
+	setCurrentAmmoInCharger: function(qty)
+	{
+		return InventoryController.set(this.id, this.getCurrentAmmoInChargerItemId(), qty)
+	},
+	
+	setCurrentAmmoInInventory: function(qty)
+	{
+		return InventoryController.set(this.id, this.getCurrentAmmoInInventoryItemId(), qty)
+	},
+
+	getCurrentAmmoInInventoryItemId: function()
+	{
+		return this.getCurrentWeaponId().split('weapon').join('ammo')
+	},
+	
+	getCurrentWeaponAmmoInInventory: function()
+	{
+		var ammoItemId = this.getCurrentAmmoInInventoryItemId()
+		return InventoryController.has(this.id, ammoItemId)
 	},
 
 	reload: function()
@@ -626,13 +651,12 @@ var WeaponController = {
 			return false
 
 		this.data('lastTimeReloaded', Date.now())
-		var id = this.getCurrentWeaponId()
 		var weapon = this.getCurrentWeapon()
 
-		var ammo = InventoryController.has('ammo', id)
+		var ammo = this.getCurrentWeaponAmmoInInventory()
 		if (ammo)
 		{
-			var currentLoadedAmmo = weapon.get('ammoLoaded')
+			var currentLoadedAmmo = this.getCurrentAmmoInCharger()
 			var chargerMaxAmmo = weapon.get('ammoCharger')
 			var missingAmmo = chargerMaxAmmo - currentLoadedAmmo
 			
@@ -640,11 +664,11 @@ var WeaponController = {
 			
 			if (ammo_after_reload > 0)
 			{
-				weapon.set('ammoLoaded', currentLoadedAmmo + missingAmmo)
-				InventoryController.attach('ammo', id, -missingAmmo)
+				this.setCurrentAmmoInCharger(currentLoadedAmmo + missingAmmo)
+				this.wasteAmmoInventory(missingAmmo)
 			} else {
-				weapon.set('ammoLoaded', ammo)
-				InventoryController.set('ammo', id, 0)
+				this.setCurrentAmmoInCharger(ammo)
+				this.setCurrentAmmoInInventory(0)
 			}
 			console.log('RELOADING GUN')
 		} else {
