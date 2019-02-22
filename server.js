@@ -171,6 +171,32 @@ var _shoot = master.create('shoot', [
 			}),
 	])
 
+var _hitText = master.create('hitText', [
+		master.field('X', {
+			sync: true
+		}),
+		master.field('Y', {
+			sync: true
+		}),
+		master.field('text', {
+			sync: true
+		}),
+		master.field('target_id', {
+			sync: true
+		}),
+		master.field('shield', {
+			sync: true,
+			default: false,
+		}),
+		master.field('created_at', {
+			sync: true
+		}),
+		master.field('angle', {
+			sync: true,
+			default: 0
+		}),
+	])
+
 
 
 
@@ -830,14 +856,24 @@ var HitController = {
 		// Check if we hit something
 		if (enemyTarget.enemy)
 		{
-			// TODO this should not work but it works wtf
-			ShootController.killBullets(bullets)
-			// var enemy = PlayerController.getDrawEntityModel(enemyTarget.enemy)
-			// var enemy = PlayersController.center(enemyTarget.enemy)
-			console.log('we hit those!')
-			//HitTextController.create(enemy.X, enemy.Y, enemyTarget.damage, true)
-			// enemyTarget.enemy.getHitted(enemyTarget.damage, shoot.weapon.id)
+			this.hitBullets(player_id, bullets, enemyTarget)
 		}
+	},
+
+	hitBullets: function(player_id, bullets, target)
+	{
+		ShootController.killBullets(bullets)
+		centeredEnemy = PlayersController.center(target.enemy)
+		console.log('HIT',player_id,'by',target.enemy.id,'for',target.damage)
+		_hitText.create(player_id + Date.now(), {
+			X: centeredEnemy.X,
+			Y: centeredEnemy.Y,
+			text: target.damage,
+			target_id: target.enemy.id,
+			shield: true,
+			created_at: Date.now(),
+		})
+		// enemyTarget.enemy.getHitted(enemyTarget.damage, shoot.weapon.id)
 	},
 
 	getInflictedDamageBulletsShapePointsHit: function (bullets, shapePoints, shapePoints_id)
@@ -1104,6 +1140,14 @@ var PlayersController = {
 
 	width: 32,
 	height: 32,
+
+	center: function (shape)
+	{
+		return {
+			X: shape.X + this.width/2,
+			Y: shape.Y + this.height/2,
+		}
+	},
 
 	getPoints: function (shape)
 	{

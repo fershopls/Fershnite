@@ -429,6 +429,7 @@ var AimController = {
 			ctx.lineTo(to[1].X, to[1].Y);
 			ctx.lineTo(to[2].X, to[2].Y);
 			ctx.lineTo(this.getPivot().X, this.getPivot().Y);
+			// TODO MAKE LOCAL HIT TEST
 			if (Core.settings.autoShoot || Core.debug)
 			{
 				if (HitController.checkLinesEnemiesHit(hitTests))
@@ -507,11 +508,11 @@ var ShootController = {
 
 	loopDraw: function (ctx, id, shoot)
 	{	
-		if (Core.debug)
-			this.drawTrigometricThing(ctx, shoot);
-
 		if (this.isDeath(shoot))
 			return false
+
+		if (Core.debug)
+			this.drawTrigometricThing(ctx, shoot);
 
 		var weapon = shoot.weapon;
 		alpha = 1 - (Date.now() - shoot.time) / this.getBulletLifeTime()
@@ -637,12 +638,12 @@ var UIController = {
 		HitTextController.draw(ctx);
 		this.drawGUI(ctx);
   		
-  		if (WeaponController.getCurrentWeapon())
-  		{
-  			this.drawWeaponSolt(ctx);
-	  		this.drawLoadedAmmo(ctx)
-	  		this.drawLeftAmmo(ctx)
-  		}
+		if (WeaponController.getCurrentWeapon())
+		{
+			this.drawWeaponSolt(ctx);
+			this.drawLoadedAmmo(ctx)
+			this.drawLeftAmmo(ctx)
+		}
 
 	},
 
@@ -1694,6 +1695,7 @@ var HitController = {
 
 	checkLinesEnemiesHit: function(lines)
 	{
+		return 0;
 		var enemies = PlayerController.getEnemies()
 		var hit = false
 		// todo replace for loop
@@ -1920,8 +1922,33 @@ var HitTextController = {
 		})
 	},
 
+	enemyAngle: [],
+	angleCreated: [],
+	createAngleFor: function(hitText)
+	{
+		if (this.anglesCreated.indexOf(hitTextId) != -1)
+			return true
+
+		// Create and set angle
+		var enemyAngle = this.enemy
+		var realAngle = this.angleIncrement*-2 + this.angleIncrement*enemyAngle;
+		enemyAngle = (enemyAngle > this.angleMax)?0:enemyAngle+1
+	},
+
 	draw: function (ctx)
 	{
+		_hitText.getData().for(function(id, hitText){
+			if (Date.now() - hitText.created_at > this.lifetime)
+			{
+				// should be removal
+			}
+			else
+			{
+				this.createAngleFor(hitText)
+				this.loopDraw(ctx, id, hitText)
+			}
+		}, this)
+
 		for (var id in this.stack) {
 			if (this.stack.hasOwnProperty(id)) {
 				if (Date.now() - this.stack[id].created_at > this.lifetime)
@@ -2166,6 +2193,7 @@ var startSyncRegisterModules = (function(modules){
 	_items = StackModuleMaster.get('items')
 	_inventory = StackModuleMaster.get('inventory')
 	_shoot = StackModuleMaster.get('shoot')
+	_hitText = StackModuleMaster.get('hitText')
 })
 
 
