@@ -257,7 +257,7 @@ var HitMathHelper = {
 
 
 
-var HitController = Object.assign({}, StackMaster, {
+var HitStack = Object.assign({}, StackMaster, {
 	stack: [],
 
 	getStack: function()
@@ -410,7 +410,7 @@ var ShootController = {
 			bullets.push(bullet)
 		}
 
-		// HitController.checkBulletsHit(bullets)
+		HitController.checkBulletsHitBy(shooter_id, bullets)
 	},
 
 	createBullet: function (shooter_id, x, y, to_x, to_y, weapon, time)
@@ -431,13 +431,10 @@ var ShootController = {
 
 	killBullets: function (bullets)
 	{
-		for (id in bullets)
+		StackMaster.loop(bullets, function(id)
 		{
-			if (!bullets.hasOwnProperty(id))
-				continue
-
 			this.killById(id)
-		}
+		}, this)
 	},
 
 	killById: function(id)
@@ -796,7 +793,120 @@ WeaponController.init()
 
 
 
+// #hit controller
+var HitController = {
 
+	checkBulletsHitBy: function(player_id, bullets)
+	{
+		this.checkBulletsEnemiesHit(player_id, bullets)
+	},
+
+	checkBulletsEnemiesHit: function(player_id, bullets)
+	{
+		var enemies = PlayersController.getEnemiesFrom(player_id)
+		var enemyTarget = {
+			length: 10**9, // help calc shoot len
+			damage: 0,
+			enemy: null,
+		}
+		StackMaster.loop(enemies, function(id, enemy){
+			var enemy = enemies[id]
+			var points = PlayersController.getPoints(enemy)
+			var posibleInflictedDamage = this.getInflictedDamageBulletsShapePointsHit(bullets, points, enemy.id)
+			
+			if (posibleInflictedDamage)
+			{
+				var shootLength = this.getShootLength(enemy)
+				// Shoot damage is only for shorter enemy
+				if (shootLength < enemyTarget.length)
+				{
+					enemyTarget.length = shootLength
+					enemyTarget.enemy = enemy
+					enemyTarget.damage = posibleInflictedDamage
+				}
+			}
+		}, this)
+
+		// Check if we hit something
+		if (enemyTarget.enemy)
+		{
+			// TODO this should not work but it works wtf
+			ShootController.killBullets(bullets)
+			// var enemy = PlayerController.getDrawEntityModel(enemyTarget.enemy)
+			// var enemy = PlayersController.center(enemyTarget.enemy)
+			console.log('we hit those!')
+			//HitTextController.create(enemy.X, enemy.Y, enemyTarget.damage, true)
+			// enemyTarget.enemy.getHitted(enemyTarget.damage, shoot.weapon.id)
+		}
+	},
+
+	getInflictedDamageBulletsShapePointsHit: function (bullets, shapePoints, shapePoints_id)
+	{
+		var inflictedDamage = 0
+		
+		for (id in bullets)
+		{
+			if (!bullets.hasOwnProperty(id))
+			continue;
+
+			var shoot = bullets[id]
+			var bulletDamage = shoot.weapon.get('damage')
+
+			// todo change shoot death for ShootController.isalive(shoot)
+			if (!shoot.death && this.checkLineShapePointsHit(shoot, shapePoints))
+			{
+				// Enemy cant hurt himself
+				if (shoot.shooter_id == shapePoints_id)
+					continue
+
+				// BULLET HITTED ON ONE OR MULTIPLE ENEMIES
+				inflictedDamage += bulletDamage
+			}
+		}
+		console.log('INFLICTED DAMAGE', inflictedDamage)
+		
+		return inflictedDamage
+	},
+
+	checkLineShapePointsHit: function (bullet, points)
+	{
+		var hit = false
+		
+		for (i = 1; i < points.length; i++)
+			hit = hit || this.areLinesColliding(bullet.from, bullet.to, points[i-1], points[i])
+		
+		return hit
+	},
+
+	getShootLength: function(enemy)
+	{
+		// where dx is the difference between the x-coordinates of the points
+		// and  dy is the difference between the y-coordinates of the points
+		// sqrt(dx^2 + dy^2)
+		// var player = PlayerController.getCurrentPlayer()
+		//var dx = player.center().X - enemy.entity.center().X
+		//var dy = player.center().Y - enemy.entity.center().Y
+		//return Math.sqrt(dx**2 + dy**2)
+		return 0
+	},
+
+	areLinesColliding: function (a, b, c, d)
+	{
+		denominator = ((b.X - a.X) * (d.Y - c.Y)) - ((b.Y - a.Y) * (d.X - c.X));
+		numerator1 = ((a.Y - c.Y) * (d.X - c.X)) - ((a.X - c.X) * (d.Y - c.Y));
+		numerator2 = ((a.Y - c.Y) * (b.X - a.X)) - ((a.X - c.X) * (b.Y - a.Y));
+
+
+    	// Detect coincident lines (has a problem, read below)
+    	if (denominator == 0) return numerator1 == 0 && numerator2 == 0;
+
+    	r = numerator1 / denominator;
+    	s = numerator2 / denominator;
+
+    	return (r >= 0 && r <= 1) && (s >= 0 && s <= 1);
+	},
+
+}
 
 
 
@@ -824,18 +934,18 @@ var GameUpdateController = {
 		var resetItemGrabbable = true
 		var socket = _players.get(player.id, 'socket')
 		_items.getData().for(function(id, item) {
-			// var HIT_ID = HitController.getId(player.id, item.id)
-			var HIT_ID = HitController.getId(player.id, item.id)
+			// var HIT_ID = HitStack.getId(player.id, item.id)
+			var HIT_ID = HitStack.getId(player.id, item.id)
 			if (HitMathHelper.boxCollides(player, item))
 			{
 				_inventory.set(player.id, {
 					item_grabbable: item.id,
 				}, true, socket)
 				lastItemId = item.id
-				HitController.set(HIT_ID, true)
+				HitStack.set(HIT_ID, true)
 				resetItemGrabbable = false
 			} else {
-				HitController.set(HIT_ID, false)
+				HitStack.set(HIT_ID, false)
 			}
 		}, this)
 		if (resetItemGrabbable)
@@ -883,8 +993,8 @@ var ItemsController = {
 
 	isPlayerAbleToGrab: function(player_id, item_id)
 	{
-		var HIT_ID = HitController.getId(player_id, item_id)
-		return HitController.get(HIT_ID)
+		var HIT_ID = HitStack.getId(player_id, item_id)
+		return HitStack.get(HIT_ID)
 	},
 
 	grabAttempt: function (socket, model)
@@ -989,9 +1099,30 @@ var InventoryController = {
 
 
 
-
+// #players controller
 var PlayersController = {
 
+	width: 32,
+	height: 32,
+
+	getPoints: function (shape)
+	{
+		  return [
+			  {X: shape.X, Y: shape.Y},
+			  {X: shape.X, Y: shape.Y + this.height},
+			  {X: shape.X + this.width, Y: shape.Y +  this.height},
+			  {X: shape.X + this.width, Y: shape.Y},
+		  ];
+	},
+
+	getEnemiesFrom: function (player_id)
+	{
+		// todo remove player id from list
+		var enemies = Object.assign({}, _players.get())
+		delete enemies[player_id]
+		return enemies
+	},
+	
 	newPlayer: function(socket)
 	{
 		// Sign In on Client
@@ -1000,7 +1131,9 @@ var PlayersController = {
 		// Sign In on Server
 		var player = _players.create(socket.id, {
 				id: socket.id,
-				socket: socket
+				socket: socket,
+				width: this.width,
+				height: this.height
 			})
 		// TODO integrate to create
 		// Set Initial Position
@@ -1049,14 +1182,6 @@ var PlayersController = {
 		var x = _players.remove(player.id)
 		console.log('[-][PLAYER]', player.id, x)
 		return false
-	},
-
-	move: function (id, point)
-	{
-		_players.set(id, {
-			X: point.X,
-			Y: point.Y
-		})
 	},
 
 }

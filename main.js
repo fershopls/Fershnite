@@ -490,7 +490,8 @@ var ShootController = {
 	{
 		_shoot.getData().for(function(id, value){
 			this.loopDraw(ctx, id, value);
-			this.playShoot(value.time, value.weapon.id)
+			if (value.weapon && value.weapon.id)
+				this.playShoot(value.time, value.weapon.id)
 		}, this)
 	},
 
@@ -1422,11 +1423,11 @@ var PlayerController = {
   		console.log('[X] PLAYER', id)
   },
 
-  getEnemies: function ()
+  getEnemiesFrom: function (player_id)
   {
   	// todo remove player id from list
   	var enemies = Object.assign({}, _players.get())
-  	delete enemies[this.id]
+  	delete enemies[player_id]
   	return enemies
   },
   
