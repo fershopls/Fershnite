@@ -469,7 +469,6 @@ var AimController = {
 
 
 var ShootController = {
-	stack: {},
 	lifetime: 800,
 	
 	socketShootDraw: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
@@ -477,115 +476,42 @@ var ShootController = {
 		ShootController.create(shooter_id, x, y, mouse_x, mouse_y, WeaponController.getWeapon(weapon_id))
 	},
 
-	create: function(shooter_id, x, y, mouse_x, mouse_y, weapon)
+	_playShoot: [],
+	playShoot: function (shoot_time, weapon_id)
 	{
-		// TODO Sounds if not exists not throw things
-		Core.sound.fire[weapon.id].play();
-		
-		var root_angle = AimController.getAngleBetween(mouse_x, mouse_y, x, y);
-		var perdigons = weapon.get('perdigons')
-		var bloom = weapon.get('bloom')
-		var length = weapon.get('length')
-
-		var bullets = [];
-		for (i = 1; i <= perdigons; i++)
-		{
-			var angle = root_angle
-			angle -= bloom /2
-			angle += bloom * Math.random()
-			
-			to = AimController.getToByAngle(x, y, length, angle)
-			var bullet = this.createBullet(shooter_id, x, y, to.X, to.Y, weapon)
-			bullets.push(bullet)
-		}
-
-		HitController.checkBulletsHit(bullets)
-	},
-
-	createBullet: function (shooter_id, x, y, to_x, to_y, weapon)
-	{
-		shoot = {
-			id: this.makeUniqueId(),
-			shooter_id: shooter_id,
-			from: {X:x, Y:y},
-			to: {X:to_x, Y:to_y},
-			time: Date.now(),
-			alive: true,
-			weapon: weapon,
-		}
-
-		this.stack[shoot.id] = shoot
-		return shoot;
-	},
-
-	killBullets: function (bullets)
-	{
-		for (id in bullets)
-		{
-			if (!bullets.hasOwnProperty(id))
-				continue
-
-			this.killById(id)
-		}
-	},
-
-	killById: function(id)
-	{
-		if (this.stack.hasOwnProperty(id))
-		{
-			this.stack[id].alive = false
-		}
-	},
-
-	deleteById: function(id)
-	{
-		if (this.stack.hasOwnProperty(id))
-		{
-			delete this.stack[id]
-		}
-	},
-
-	makeUniqueId: function()
-	{
-		return Date.now()+"_"+(Math.floor(Math.random()*10000)+10000)
-	},
-
-	update: function (dt)
-	{
-		for (var id in this.stack) {
-			if (this.stack.hasOwnProperty(id)) {
-	        	this.loopUpdate(id, this.stack[id], dt);
-			}
-		}
+		shoot_id = shoot_time+weapon_id
+		if (this._playShoot.indexOf(shoot_id) != -1)
+			return true
+		Core.sound.fire[weapon_id].play();
+		this._playShoot.push(shoot_id)
 	},
 
 	draw: function (ctx)
 	{
-		for (var id in this.stack) {
-			if (this.stack.hasOwnProperty(id)) {
-	     	   this.loopDraw(ctx, id, this.stack[id]);
-			}
-		}
-	},
-
-	loopUpdate: function (id, shoot, dt)
-	{
-		if(this.getBulletLifeTime() != 0 && shoot.time + this.getBulletLifeTime() < Date.now())
-	    {
-			this.deleteById(id)
-	    }
+		_shoot.getData().for(function(id, value){
+			this.loopDraw(ctx, id, value);
+			this.playShoot(value.time, value.weapon.id)
+		}, this)
 	},
 
 	getBulletLifeTime: function ()
 	{
-		// shoot.weapon.get('lifetime')
-		return Core.debug?1000:50
+		return 100
+	},
+
+	isDeath: function(shoot)
+	{
+		return shoot.death || shoot.time + this.getBulletLifeTime() < Date.now()
 	},
 
 	loopDraw: function (ctx, id, shoot)
-	{
+	{	
 		if (Core.debug)
 			this.drawTrigometricThing(ctx, shoot);
+
+		if (this.isDeath(shoot))
+			return false
+
 		var weapon = shoot.weapon;
 		alpha = 1 - (Date.now() - shoot.time) / this.getBulletLifeTime()
 		alpha = 1
@@ -1321,16 +1247,8 @@ var WeaponController = {
 		
 		this.data.lastTimeFired = Date.now()
 		
-		if (this.getAmmoInCharger() > 0)
+		if (this.getAmmoInCharger() == 0)
 		{
-			// Send shoot
-			var player = PlayerController.getCurrentPlayer()
-
-			ShootController.create(PlayerController.id,
-				DrawHandler.center(player).X, DrawHandler.center(player).Y,
-				MouseController.X, MouseController.Y,
-				WeaponController.getCurrentWeapon())
-		} else {
 			this.reload()
 		}
 	},
@@ -2246,6 +2164,7 @@ var startSyncRegisterModules = (function(modules){
 	_players = StackModuleMaster.get('players')
 	_items = StackModuleMaster.get('items')
 	_inventory = StackModuleMaster.get('inventory')
+	_shoot = StackModuleMaster.get('shoot')
 })
 
 

@@ -142,6 +142,35 @@ var _weapon = master.create('weapon', [
 			}),
 	])
 
+var _shoot = master.create('shoot', [
+		master.field('id', {
+				sync: true
+			}),
+		master.field('shoter_id', {
+				sync: true
+			}),
+		master.field('from', {
+				default: 0,
+				sync: true
+			}),
+		master.field('to', {
+				default: null,
+				sync: true
+			}),
+		master.field('time', {
+				default: 0,
+				sync: true
+			}),
+		master.field('death', {
+				default: 0,
+				sync: true
+			}),
+		master.field('weapon', {
+				default: 0,
+				sync: true
+			}),
+	])
+
 
 
 
@@ -357,27 +386,17 @@ function Weapon (settings) {
 
 
 
-
+// #shoot controller
 var ShootController = {
-	stack: {},
 	lifetime: 800,
 	
-	socketShootSend: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
-	{
-		Socket.io.emit('shootClick', shooter_id, x, y, mouse_x, mouse_y, weapon_id)
-	},
-	
-	socketShootDraw: function(shooter_id, x, y, mouse_x, mouse_y, weapon_id)
-	{
-		ShootController.create(shooter_id, x, y, mouse_x, mouse_y, WeaponController.getWeapon(weapon_id))
-	},
-
 	create: function(shooter_id, x, y, click_x, click_y, weapon)
 	{	
 		var root_angle = HitMathHelper.getAngleBetween(click_x, click_y, x, y);
 		var perdigons = weapon.get('perdigons')
 		var bloom = weapon.get('bloom')
 		var length = weapon.get('length')
+		var shootTime = Date.now()
 
 		var bullets = [];
 		for (i = 1; i <= perdigons; i++)
@@ -387,26 +406,26 @@ var ShootController = {
 			angle += bloom * Math.random()
 			
 			to = HitMathHelper.getToByAngle(x, y, length, angle)
-			var bullet = this.createBullet(shooter_id, x, y, to.X, to.Y, weapon)
+			var bullet = this.createBullet(shooter_id, x, y, to.X, to.Y, weapon, shootTime)
 			bullets.push(bullet)
 		}
 
 		// HitController.checkBulletsHit(bullets)
 	},
 
-	createBullet: function (shooter_id, x, y, to_x, to_y, weapon)
+	createBullet: function (shooter_id, x, y, to_x, to_y, weapon, time)
 	{
 		shoot = {
 			id: this.makeUniqueId(),
 			shooter_id: shooter_id,
 			from: {X:x, Y:y},
 			to: {X:to_x, Y:to_y},
-			time: Date.now(),
-			alive: true,
+			time: time,
+			death: false,
 			weapon: weapon,
 		}
 
-		this.stack[shoot.id] = shoot
+		_shoot.set(shoot.id, shoot)
 		return shoot;
 	},
 
@@ -423,93 +442,49 @@ var ShootController = {
 
 	killById: function(id)
 	{
-		if (this.stack.hasOwnProperty(id))
-		{
-			this.stack[id].alive = false
-		}
+		_shoot.set(id, {
+			death: Date.now()
+		})
 	},
 
 	deleteById: function(id)
 	{
-		if (this.stack.hasOwnProperty(id))
-		{
-			delete this.stack[id]
-		}
+		_shoot.remove(id)
 	},
 
 	makeUniqueId: function()
 	{
 		return Date.now()+"_"+(Math.floor(Math.random()*10000)+10000)
 	},
-
-	update: function (dt)
+	
+	update: function ()
 	{
-		for (var id in this.stack) {
-			if (this.stack.hasOwnProperty(id)) {
-	        	this.loopUpdate(id, this.stack[id], dt);
-			}
-		}
+		_shoot.getData().for(function(id, value){
+			this.loopUpdate(id, value);
+		}, this)
 	},
 
-	draw: function (ctx)
+	loopUpdate: function (id, shoot)
 	{
-		for (var id in this.stack) {
-			if (this.stack.hasOwnProperty(id)) {
-	     	   this.loopDraw(ctx, id, this.stack[id]);
-			}
-		}
-	},
-
-	loopUpdate: function (id, shoot, dt)
-	{
-		if(this.getBulletLifeTime() != 0 && shoot.time + this.getBulletLifeTime() < Date.now())
+		if(!shoot.death
+			&& shoot.time + this.getBulletLifeTime() < Date.now())
+	    {
+			this.killById(id)
+	    }
+		if(shoot.death && shoot.death + this.getDeathSafeTime() < Date.now())
 	    {
 			this.deleteById(id)
 	    }
 	},
 
+	getDeathSafeTime: function()
+	{
+		return 1000 // mms
+	},
+
 	getBulletLifeTime: function ()
 	{
-		// shoot.weapon.get('lifetime')
-		return Core.debug?1000:50
-	},
-
-	loopDraw: function (ctx, id, shoot)
-	{
-		if (Core.debug)
-			this.drawTrigometricThing(ctx, shoot);
-		var weapon = shoot.weapon;
-		alpha = 1 - (Date.now() - shoot.time) / this.getBulletLifeTime()
-		alpha = 1
-
-		DrawHandler.draw(0, 0, function(ctx){
-			ctx.beginPath();
-			var max = this.getBulletLifeTime()
-			var min = Date.now() - shoot.time
-			ctx.lineWidth = (1 / max * min) * 8
-			ctx.strokeStyle = 'rgba(255, 235, 59, '+alpha+')'//weapon.getRGBAColor(alpha);
-			ctx.moveTo(shoot.from.X, shoot.from.Y);
-			ctx.lineTo(shoot.to.X, shoot.to.Y);
-			ctx.stroke();
-		}, this)
-
-	},
-
-	drawTrigometricThing: function (ctx, shoot)
-	{
-		DrawHandler.draw(0, 0, function(){
-			this.beginPath();
-			this.strokeStyle = '#ddd';
-			this.moveTo(shoot.from.X, shoot.from.Y);
-			this.lineTo(shoot.to.X, shoot.to.Y);
-	
-			this.moveTo(shoot.from.X, shoot.from.Y);
-			this.lineTo(shoot.to.X, shoot.from.Y);
-	
-			this.moveTo(shoot.to.X, shoot.from.Y);
-			this.lineTo(shoot.to.X, shoot.to.Y);
-			this.stroke();
-		})
+		return 100
 	},
 }
 
@@ -828,11 +803,11 @@ WeaponController.init()
 
 
 
-
-
+// #game #update
 var GameUpdateController = {
 	update: function ()
 	{
+		ShootController.update()
 		_players.getData().for(function(id, player){
 			this.updatePlayer(player)
 		}, this)
