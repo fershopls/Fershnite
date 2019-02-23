@@ -941,6 +941,91 @@ var CameraHandler = {
 }
 
 
+// #svg
+var SvgController = {
+
+	svg: null,
+
+	init: function(){
+		this.loadRectsFromSvg()
+	},
+
+	onGetSvgString: function(callback)
+	{
+		$.get('/assets/map.txt', function(data) {
+				callback.call(this, data)
+		});
+	},
+
+	loadRectsFromSvg: function()
+	{
+		var draw = SVG('drawing')
+		this.svg = draw
+		this.onGetSvgString(function(svg_string){
+			window.svg = (svg_string)
+			SvgController.svg.svg(svg_string)
+		})
+	},
+
+	entitize: function(svgRect)
+	{
+		return {
+			X: svgRect.x(),
+			Y: svgRect.y(),
+			width: svgRect.width(),
+			height: svgRect.height(),
+		}
+	},
+
+	update: function()
+	{
+		var player = PlayerController.getCurrentPlayer()
+		if (!player)
+			return 0
+		
+		playerEntity = {
+			X: player.X,
+			Y: player.Y,
+			width: PlayerController.width,
+			height: PlayerController.height,
+		}
+		SvgController.boxes = []
+		this.svg.each(function(i, children) {
+			var boxEntity = SvgController.entitize(this)
+			var collision = HitController.boxCollides(playerEntity, boxEntity)
+			if (collision)
+			{
+				SvgController.boxes = [playerEntity, boxEntity]
+			}
+		}, true)
+	},
+
+	boxes: [],
+
+	draw: function()
+	{
+		if (!Core.debug) return false
+		this.svg.each(function(i, children) {
+			this.fill({ color: '#f06' })
+			this.width()
+			DrawHandler.draw(this.x(), this.y(), function(ctx){
+				ctx.fillStyle = 'rgba(0,0,0,0.8)'
+				ctx.fillRect(0,0, this.width(), this.height())
+			}, this)
+		}, true)
+		StackMaster.loop(this.boxes, function(id, b){
+			DrawHandler.draw(b.X, b.Y, function(ctx){
+				ctx.fillStyle = '#f06'
+				ctx.fillRect(0,0, this.width, this.height)
+			}, b)
+		})
+	}
+
+}
+
+
+
+
 /*=========================================
 =            #DRAW #HANDLER               =
 ===========================================*/
@@ -2312,6 +2397,7 @@ $(document).ready(function(){
 				AimController,
 				TextController,
 				UIController,
+				SvgController,
 			]
 		
 		SpriteHandler.init()
@@ -2364,36 +2450,3 @@ var startSyncRegisterModules = (function(modules){
 	_hitText = StackModuleMaster.get('hitText')
 })
 
-
-
-/*
-#CLIENT
-	-> Input
-		-> Route to ModuleMaster.Input
-	-> Output
-		-> ModuleMaster.sync (module_id, value_id, id)
-#SERVER
-	-> Input
-		-> socket.on('sync')
-			-> master.sync(module_id, value_id, id, value)
-	-> Output
-		-> ModuleMaster.sync (module_id, value_id, id)
-
-#################
-###### NOW ######
-#################
-
-#CLIENT
-	-> Input
-		-> this.io.on('sync')
-	-> Output
-		-> ModuleMaster.sync (module_id, value_id, id)
-#SERVER
-	-> Input
-		-> socket.on('sync')
-			-> master.sync(module_id, value_id, id, value)
-	-> Output
-		-> ModuleMaster.sync (module_id, value_id, id)
-
-
-*/
