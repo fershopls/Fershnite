@@ -97,6 +97,7 @@ var Core = {
 	{
 		DrawHandler.clear()
 		DrawHandler.drawGrid()
+		DrawHandler.drawBackground();
 		
 		for (var id in this.modules) {
 			if (this.modules.hasOwnProperty(id)) {
@@ -283,9 +284,7 @@ var SpriteHandler = Object.assign({}, StackMaster, {
 	{
 		var spritesheet = this.getObjectIdSpritesheet(object_id, spritesheet_id)
 
-		DrawHandler.draw(x, y, function(){
-			spritesheet.get().render(this)
-		})
+		spritesheet.get().render(Core.data.ctx)
 	},
 
 })
@@ -859,7 +858,7 @@ var DrawHandler = {
 		return baseSprite
 	},
 
-	drawSprite: function(id, spriteSettings) {
+	drawSprite: function(id, spriteSettings, absoluteDraw) {
 		var draw = Object.assign({}, this.getBaseSprite(), spriteSettings)
 			
 		if (draw.sprite)
@@ -867,14 +866,15 @@ var DrawHandler = {
 			// Draw sprite
 			DrawHandler.draw(draw.X + draw.paddingX, draw.Y + draw.paddingY, function(){
 				this.scale(draw.scaleX, draw.scaleY)
-				SpriteHandler.draw(id, 0, 0, draw.sprite)
-			})
+				SpriteHandler.draw(id, 0, 0, draw.sprite, absoluteDraw)
+			}, false, absoluteDraw)
 		} else {
+			// TODO ABSOLUTE DRAW!!!
 			// Draw default rect
 			DrawHandler.draw(draw.X, draw.Y, function(){
 				this.fillStyle = draw.color;
 				this.fillRect(0, 0, draw.width, draw.height);
-			})
+			}, false, absoluteDraw)
 			var center = this.center(draw)
 			TextController.create({X: center.X, Y: center.Y, text: draw.alias, align:'center'})
 		}
@@ -885,7 +885,7 @@ var DrawHandler = {
 			DrawHandler.draw(draw.X, draw.Y, function(){
 				this.strokeStyle = draw.color;
 				this.strokeRect(0, 0, draw.width, draw.height);
-			})
+			}, false, absoluteDraw)
 			var text = id?id:draw.alias
 			var center = this.center(draw)
 			TextController.create({size:11, font:'Arial', X: center.X, Y: draw.Y + draw.height, text: text, align:'center'})
@@ -905,6 +905,13 @@ var DrawHandler = {
 		})
 	},
 
+	drawBackground: function()
+	{
+		this.draw(0,0, function(){
+			this.drawImage(resources.get('assets/background.png'), 0, 0);
+		})
+	},
+
 	drawGrid: function()
 	{
 		this.draw(-10,-15, function(){
@@ -915,7 +922,8 @@ var DrawHandler = {
 			{
 				var X = i*factor
 				this.moveTo(X, 0)
-				var to = AimController.getToByAngle(X,0, Core.data.canvas.width, 35*Math.PI/180)
+				var degs = 90 -60
+				var to = AimController.getToByAngle(X,0, Core.data.canvas.width, degs*Math.PI/180)
 				this.lineTo(to.X, to.Y)
 				this.stroke()
 			}
@@ -923,7 +931,8 @@ var DrawHandler = {
 			{
 				var X = i*factor
 				this.moveTo(X, 0)
-				var to = AimController.getToByAngle(X,0, Core.data.canvas.width, 145*Math.PI/180)
+				var degs = 90 +60
+				var to = AimController.getToByAngle(X,0, Core.data.canvas.width, degs*Math.PI/180)
 				this.lineTo(to.X, to.Y)
 				this.stroke()
 			}
@@ -937,8 +946,13 @@ var DrawHandler = {
 		else callback.call(draw_ctx)
 	},
 
-	draw: function(x, y, callback, object_ctx) {
+	draw: function(x, y, callback, object_ctx, absoluteDraw) {
 		var ctx = this.getCanvasContext()
+		currentPlayer = PlayerController.getCurrentPlayer()
+		if (currentPlayer && !absoluteDraw) {
+			x -= currentPlayer.X - (Core.data.canvas.width/2 -PlayerController.width/2)
+			y -= currentPlayer.Y - (Core.data.canvas.height/2 -PlayerController.height/2)
+		}
 		ctx.save()
 		ctx.translate(x, y)
 		this.callDrawCallback(callback, object_ctx, ctx)
@@ -1589,7 +1603,7 @@ var PlayerController = {
   
   getCurrentPlayer: function()
   {
-		return this.getDrawModel(this.id, _players.get(this.id))
+		return _players.get(this.id)
   },
   
   center: function(item) {
@@ -1603,10 +1617,12 @@ var PlayerController = {
   		var drawModel = {
 				X: player.X,
 				Y: player.Y,
+
 				width: this.width,
 				height: this.height,
 				color: id == this.id?'#00A':'red',
 				sprite: 'player',
+				positionIsAbsolute: false,
 	  	}
 	  	return drawModel
 	},
@@ -1617,9 +1633,21 @@ var PlayerController = {
   	
   	StackMaster.loop(players, function(id, player){
 			var drawModel = this.getDrawModel(id, player)
-			DrawHandler.drawSprite(id, drawModel)
+			if (id == this.id)
+				drawModel = this.drawCurrentPlayer(drawModel)
+			
+			DrawHandler.drawSprite(id, drawModel, drawModel.positionIsAbsolute)
   	}, this)
-  },
+	},
+	
+	drawCurrentPlayer: function(drawModel)
+	{
+		drawModel.X = Core.data.canvas.width/2 -drawModel.width/2
+		drawModel.Y = Core.data.canvas.height/2 -drawModel.height/2
+		drawModel.positionIsAbsolute = true
+
+		return drawModel
+	},
 
   updateAllowItemGrabbable: function()
   {
@@ -2125,6 +2153,7 @@ $(document).ready(function(){
 	    'assets/gui.png',
 	    'assets/player.png',
 	    'assets/gun.png',
+	    'assets/background.png',
 	]);
 	resources.onReady(function(){
 		Controllers = [
