@@ -367,12 +367,13 @@ var AimController = {
 	    var fillStyle = 'black';
 		if (weapon)
 	    	fillStyle = weapon.getRGBColor();
-	    
-	    this.drawCursor(ctx, fillStyle)
-	    this.drawBloomArea(ctx, weapon)
+			
+			var cursor_point = CameraHandler.translateToServer(CameraHandler.point(MouseController.X, MouseController.Y))
+	    this.drawCursor(ctx, cursor_point, fillStyle)
+	    this.drawBloomArea(ctx, cursor_point, weapon)
 	},
 
-	drawBloomArea: function (ctx, weapon)
+	drawBloomArea: function (ctx, point, weapon)
 	{
 		if (!weapon)
 			return false
@@ -448,14 +449,14 @@ var AimController = {
 		return {from: from, to: to}
 	},
 
-	drawCursor: function (ctx, fillStyle)
+	drawCursor: function (ctx, point, fillStyle)
 	{
 		DrawHandler.draw(0,0, function (){
 			ctx.beginPath();
 			ctx.fillStyle = fillStyle
-	    ctx.fillRect(MouseController.X-3, MouseController.Y-3, 6, 6);
-	    ctx.fillRect(MouseController.X-1, MouseController.Y-3-10, 2, 8);
-	    ctx.fillRect(MouseController.X-1, MouseController.Y-3 +8, 2, 8);
+	    ctx.fillRect(point.X-3, point.Y-3, 6, 6);
+	    ctx.fillRect(point.X-1, point.Y-3-10, 2, 8);
+	    ctx.fillRect(point.X-1, point.Y-3 +8, 2, 8);
 		})
 	},
 
@@ -651,7 +652,7 @@ var UIController = {
 		DrawHandler.draw(0, 0, function()
 		{
 			this.drawImage(resources.get('assets/gui.png'), 0, 0);
-		})
+		}, false, true)
 	},
 
 	drawLoadedAmmo: function(ctx)
@@ -662,7 +663,7 @@ var UIController = {
 		text = WeaponController.getAmmoInCharger()
 		if (text == -1)
 			text = '∞'
-		TextController.create({size:20, text: text, X: X, Y: Y, align: 'right'})
+		TextController.create({size:20, text: text, X: X, Y: Y, align: 'right', absoluteDraw:true})
 	},
 
 	drawLeftAmmo: function(ctx)
@@ -671,7 +672,7 @@ var UIController = {
 		var Y = Core.data.canvas.height -82
 		
 		text = WeaponController.getAmmoInInventory()
-		TextController.create({size:20, text: text, X: X, Y: Y, align: 'left'})
+		TextController.create({size:20, text: text, X: X, Y: Y, align: 'left', absoluteDraw:true})
 	},
 
 	drawWeaponSolt: function(ctx)
@@ -679,7 +680,7 @@ var UIController = {
 		DrawHandler.draw(94, Core.data.canvas.height - 76, function(ctx){
 			var sprite = this.sprite.get(WeaponController.getCurrentWeaponId())
 			sprite.render(ctx)
-		}, this)
+		}, this, true)
 
 		// prev weapon
 		var currentWeapon = WeaponController.getCurrentWeaponId()
@@ -721,7 +722,7 @@ var UIController = {
 			ctx.strokeStyle = ctx.fillStyle
 			ctx.strokeRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width, this.ui.stats.height)
 			ctx.fillRect(Core.data.canvas.width/2 - this.ui.stats.width/2, Core.data.canvas.height - (this.ui.stats.margin + padding), this.ui.stats.width*fillRate, this.ui.stats.height)
-		}, this)
+		}, this, true)
 	},
 
 }
@@ -823,6 +824,119 @@ function Weapon (settings) {
     	var c = this.get('color')
     	return 'rgba('+c[0]+','+c[1]+','+c[2]+','+alpha+')'
     }
+
+}
+
+// #camera handler
+
+var CameraHandler = {
+
+	point: function(x,y)
+	{
+		return {
+			X: x,
+			Y: y
+		}
+	},
+
+	translateToServer: function(point_client)
+	{
+		var center = this.getCanvasCenter()
+		var player = this.getCurrentPlayerPoint()
+
+		if (!this.isCameraInsideCornerX())
+			point_client.X += this.getCameraPaddingX()
+			
+			if (!this.isCameraInsideCornerY())
+				point_client.Y += this.getCameraPaddingY()
+
+		return point_client
+	},
+
+	translateToClient: function(point_server)
+	{
+		point_server.X -= this.getCameraPaddingX()
+		point_server.Y -= this.getCameraPaddingY()
+
+		return point_server
+	},
+
+	getCurrentPlayerPoint: function()
+	{
+		currentPlayer = PlayerController.getCurrentPlayer()
+		if (currentPlayer)
+			return this.point(currentPlayer.X, currentPlayer.Y)
+		return this.point(0,0)
+	},
+
+	getCanvasCenter: function(){
+		return this.point(
+			(Core.data.canvas.width/2 -PlayerController.width/2),
+			(Core.data.canvas.height/2 -PlayerController.height/2),
+		)
+	},
+
+	getMapSizes: function()
+	{
+		return this.point(
+			resources.get('assets/background.png').width,
+			resources.get('assets/background.png').height,
+		)
+	},
+
+	getCameraPaddingX: function()
+	{
+		var centerX = this.getCanvasCenter().X
+		var playerX = this.getCurrentPlayerPoint().X
+		
+		if (playerX <= centerX)
+			return 0
+
+		if (this.isCameraOutsideCornerX())
+			return this.getMapSizes().X - centerX*2 - PlayerController.width
+
+		return playerX - centerX
+	},
+
+	getCameraPaddingY: function()
+	{
+		var centerY = this.getCanvasCenter().Y
+		var playerY = this.getCurrentPlayerPoint().Y
+		
+		if (playerY <= centerY)
+			return 0
+
+		if (this.isCameraOutsideCornerY())
+			return this.getMapSizes().Y - centerY*2 - PlayerController.height
+
+		return playerY - centerY
+	},
+
+	isCameraOutsideCornerX: function()
+	{
+		var centerX = this.getCanvasCenter().X
+		var playerX = this.getCurrentPlayerPoint().X
+		var mapX = this.getMapSizes().X
+		return playerX >= mapX -centerX - PlayerController.width
+	},
+	
+	isCameraOutsideCornerY: function()
+	{
+		var centerY = this.getCanvasCenter().Y
+		var playerY = this.getCurrentPlayerPoint().Y
+		var mapY = this.getMapSizes().Y
+		return playerY >= mapY -centerY - PlayerController.height
+	},
+
+	isCameraInsideCornerX: function()
+	{
+		return !this.getCameraPaddingX() > 0
+	},
+
+	isCameraInsideCornerY: function()
+	{
+		return !this.getCameraPaddingY() > 0
+	}
 
 }
 
@@ -948,10 +1062,10 @@ var DrawHandler = {
 
 	draw: function(x, y, callback, object_ctx, absoluteDraw) {
 		var ctx = this.getCanvasContext()
-		currentPlayer = PlayerController.getCurrentPlayer()
-		if (currentPlayer && !absoluteDraw) {
-			x -= currentPlayer.X - (Core.data.canvas.width/2 -PlayerController.width/2)
-			y -= currentPlayer.Y - (Core.data.canvas.height/2 -PlayerController.height/2)
+		if (!absoluteDraw) {
+			var point = CameraHandler.translateToClient(CameraHandler.point(x, y))
+			x = point.X
+			y = point.Y
 		}
 		ctx.save()
 		ctx.translate(x, y)
@@ -1520,11 +1634,12 @@ var PlayerController = {
     // Shoot send
     if (MouseController.click)
     {
+			var click_point = CameraHandler.translateToServer({
+				X: MouseController.X,
+				Y: MouseController.Y,
+			})
 			_control.set(PlayerController.id, {
-				click: {
-					X: MouseController.X,
-					Y: MouseController.Y,
-				}
+				click: click_point
 			})
 			WeaponController.shoot(dt);
     }
@@ -1642,10 +1757,29 @@ var PlayerController = {
 	
 	drawCurrentPlayer: function(drawModel)
 	{
-		drawModel.X = Core.data.canvas.width/2 -drawModel.width/2
-		drawModel.Y = Core.data.canvas.height/2 -drawModel.height/2
-		drawModel.positionIsAbsolute = true
+		var absoluteX = absoluteY = false
+		
+		if (!CameraHandler.isCameraInsideCornerX() && !CameraHandler.isCameraOutsideCornerX())
+		{
+			drawModel.X = Core.data.canvas.width/2 -drawModel.width/2
+			absoluteX = true
+		}
+		
+		if (!CameraHandler.isCameraInsideCornerY() && !CameraHandler.isCameraOutsideCornerY())
+		{
+			drawModel.Y = Core.data.canvas.height/2 -drawModel.height/2
+			absoluteY = true
+		}
+		
+		var point = CameraHandler.translateToClient(CameraHandler.point(drawModel.X, drawModel.Y))
+		if (!absoluteX)
+			drawModel.X = point.X
+		
+		if (!absoluteY)
+			drawModel.Y = point.Y
 
+
+		drawModel.positionIsAbsolute = true
 		return drawModel
 	},
 
@@ -1884,6 +2018,7 @@ var TextController = {
 				stroke: null,
 				lineWidth: 2,
 				text: 'hello',
+				absoluteDraw: false,
 			}
 	},
 	stack: [],
@@ -1917,7 +2052,7 @@ var TextController = {
 				this.fillText(t.text, 0, 0)
 			if (t.stroke)
 				this.strokeText(t.text, 0, 0)
-		})
+		}, false, t.absoluteDraw)
 	}
 }
 
