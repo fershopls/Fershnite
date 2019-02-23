@@ -990,7 +990,7 @@ var DrawHandler = {
 				this.fillRect(0, 0, draw.width, draw.height);
 			}, false, absoluteDraw)
 			var center = this.center(draw)
-			TextController.create({X: center.X, Y: center.Y, text: draw.alias, align:'center'})
+			TextController.create({X: center.X, Y: center.Y, text: draw.alias, align:'center', absoluteDraw:absoluteDraw})
 		}
 		
 		if (Core.debug)
@@ -1002,7 +1002,7 @@ var DrawHandler = {
 			}, false, absoluteDraw)
 			var text = id?id:draw.alias
 			var center = this.center(draw)
-			TextController.create({size:11, font:'Arial', X: center.X, Y: draw.Y + draw.height, text: text, align:'center'})
+			TextController.create({size:11, font:'Arial', X: center.X, Y: draw.Y + draw.height, text: text, align:'center', absoluteDraw:absoluteDraw})
 		}
 	},
 	
