@@ -2085,17 +2085,21 @@ var HitTextController = {
 		})
 	},
 
-	enemyAngle: [],
-	angleCreated: [],
+	enemyAngle: {},
+	angleCreated: {},
 	createAngleFor: function(hitText)
 	{
-		if (this.anglesCreated.indexOf(hitTextId) != -1)
-			return true
+		var hitTextId = hitText.target_id + hitText.created_at
+		if (this.angleCreated.hasOwnProperty(hitTextId))
+			return this.angleCreated[hitTextId]
 
 		// Create and set angle
-		var enemyAngle = this.enemy
-		var realAngle = this.angleIncrement*-2 + this.angleIncrement*enemyAngle;
-		enemyAngle = (enemyAngle > this.angleMax)?0:enemyAngle+1
+		var enemyAngleIncrement = this.enemyAngle.hasOwnProperty(hitText.target_id)?this.enemyAngle[hitText.target_id]:0
+		enemyAngleIncrement = (enemyAngleIncrement >= this.angleMax)?0:enemyAngleIncrement+1
+		var realAngle = this.angleIncrement*-2 + this.angleIncrement*enemyAngleIncrement;
+		this.enemyAngle[hitText.target_id] = enemyAngleIncrement
+		this.angleCreated[hitTextId] = realAngle
+		return realAngle
 	},
 
 	draw: function (ctx)
@@ -2107,7 +2111,7 @@ var HitTextController = {
 			}
 			else
 			{
-				this.createAngleFor(hitText)
+				hitText.angle = this.createAngleFor(hitText)
 				this.loopDraw(ctx, id, hitText)
 			}
 		}, this)
