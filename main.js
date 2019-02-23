@@ -977,6 +977,24 @@ var SvgController = {
 		}
 	},
 
+	checkCollisionForPoint: function(point)
+	{
+		var thereIsCollision = false
+		
+		playerPointEntity = {
+			X: point.X,
+			Y: point.Y,
+			width: PlayerController.width,
+			height: PlayerController.height,
+		}
+
+		this.svg.each(function(i, children) {
+			var boxEntity = SvgController.entitize(this)
+			thereIsCollision = thereIsCollision || HitController.boxCollides(playerPointEntity, boxEntity)
+		}, true)
+		return thereIsCollision
+	},
+
 	update: function()
 	{
 		var player = PlayerController.getCurrentPlayer()
@@ -990,14 +1008,17 @@ var SvgController = {
 			height: PlayerController.height,
 		}
 		SvgController.boxes = []
-		this.svg.each(function(i, children) {
-			var boxEntity = SvgController.entitize(this)
-			var collision = HitController.boxCollides(playerEntity, boxEntity)
-			if (collision)
-			{
-				SvgController.boxes = [playerEntity, boxEntity]
-			}
-		}, true)
+		if (Core.debug)
+		{
+			this.svg.each(function(i, children) {
+				var boxEntity = SvgController.entitize(this)
+				var collision = HitController.boxCollides(playerEntity, boxEntity)
+				if (collision)
+				{
+					SvgController.boxes = [playerEntity, boxEntity]
+				}
+			}, true)
+		}
 	},
 
 	boxes: [],
@@ -1651,7 +1672,15 @@ var PlayerController = {
 		if (inventory.hasOwnProperty(item_id))
 			return inventory[item_id]
 		return 0
-  },
+	},
+	
+	attemptToMove: function(point)
+	{
+		if (!SvgController.checkCollisionForPoint(point))
+		{
+			_players.set(this.id, point)
+		}
+	},
 
   update: function(dt){
   	this.captureCurrentPoint()
@@ -1712,8 +1741,9 @@ var PlayerController = {
 	    	X: player.X+this.movement.x_speed,
 	    	Y: player.Y+this.movement.y_speed,
 	    }
-	    var theresDiff = this.thereIsPointsDifference(point)
-	    _players.set(this.id, point, theresDiff)
+			var theresDiff = this.thereIsPointsDifference(point)
+			if (theresDiff)
+				this.attemptToMove(point)
     }
 
     // Shoot send
