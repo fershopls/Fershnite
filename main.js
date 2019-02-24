@@ -525,6 +525,8 @@ var ShootController = {
 			ctx.lineWidth = (1 / max * min) * 8
 			ctx.strokeStyle = 'rgba(255, 235, 59, '+alpha+')'//weapon.getRGBAColor(alpha);
 			ctx.moveTo(shoot.from.X, shoot.from.Y);
+			if (typeof shoot.to == 'undefined')
+				console.log('ferbug')
 			ctx.lineTo(shoot.to.X, shoot.to.Y);
 			ctx.stroke();
 		}, this)

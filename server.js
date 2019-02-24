@@ -502,7 +502,7 @@ var ShootController = {
 
 	getDeathSafeTime: function()
 	{
-		return 1000 // mms
+		return 5000 // mms
 	},
 
 	getBulletLifeTime: function ()
@@ -1019,12 +1019,12 @@ var ItemsController = {
 
 	generate: function()
 	{
-		this.new('weapon.shotgun', {qty: 3, X: Math.random()*500, Y: 50})
-		this.new('weapon.rifle', {qty: 10, X: Math.random()*500, Y: 100})
-		this.new('weapon.smg', {qty: 10, X: Math.random()*500, Y: 150})
-		this.new('ammo.smg', {qty: 30, X: 500, Y: 200})
-		this.new('ammo.shotgun', {qty: 30, X: 500, Y: 200})
-		this.new('ammo.rifle', {qty: 30, X: 500, Y: 200})
+		this.new('weapon.shotgun', {qty: 3, X: Math.random()*500, Y: 400})
+		this.new('weapon.rifle', {qty: 10, X: Math.random()*500, Y: 400})
+		this.new('weapon.smg', {qty: 10, X: Math.random()*500, Y: 400})
+		this.new('ammo.smg', {qty: 30, X: 300, Y: 350})
+		this.new('ammo.shotgun', {qty: 30, X: 400, Y: 350})
+		this.new('ammo.rifle', {qty: 30, X: 500, Y: 350})
 	},
 
 	isPlayerAbleToGrab: function(player_id, item_id)
@@ -1183,7 +1183,7 @@ var PlayersController = {
 		// Set Initial Position
 		_players.set(socket.id, {
 				X: Math.round(800 * Math.random()),
-				Y: Math.round(300 * Math.random()),
+				Y: Math.round(400),
 			})
 
 		console.log('[+][PLAYER]['+player.X+':'+player.Y+']', player.id)
